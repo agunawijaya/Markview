@@ -1,0 +1,26 @@
+{
+  "name": "markview",
+  "version": "1.0.0",
+  "description": "Portable Markdown viewer for Windows 11, built with Tauri 2.",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "keywords": ["markdown", "viewer", "tauri", "portable", "mermaid"],
+  "author": "Aguna Wijaya",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agunawijaya/markview.git"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/cli": "^2.10.1",
+    "docx": "^9.6.1",
+    "highlight.js": "^11.11.1",
+    "html-docx-js": "^0.3.1",
+    "marked": "^17.0.4",
+    "mermaid": "^11.13.0"
+  }
+}
