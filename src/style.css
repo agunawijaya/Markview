@@ -204,6 +204,60 @@ html, body {
   flex-shrink: 0;
 }
 
+/* === Toolbar groups + Word-style overflow === */
+.tb-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* Vertical divider between adjacent groups inside the toolbar */
+#toolbar .tb-group + .tb-group::before {
+  content: '';
+  display: block;
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 6px 0 4px;
+  flex-shrink: 0;
+}
+
+/* Chevron: pushed to far right, hidden until needed */
+#toolbar-overflow-btn {
+  margin-left: auto;
+  display: none;
+}
+#toolbar-overflow-btn.visible {
+  display: inline-flex;
+}
+
+/* Popup that opens on chevron click */
+#toolbar-overflow-menu {
+  position: absolute;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  display: none;
+  z-index: 1000;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+body.dark #toolbar-overflow-menu {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+#toolbar-overflow-menu.open {
+  display: flex;
+}
+
+/* In popup, groups stack vertically with a horizontal divider between them */
+#toolbar-overflow-menu .tb-group + .tb-group {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
 /* === Main Area (sidebar + content) === */
 #main-area {
   display: flex;

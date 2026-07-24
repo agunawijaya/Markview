@@ -159,6 +159,249 @@ function initToolbar() {
       handleAction(btn.dataset.action);
     });
   });
+  initToolbarOverflow();
+}
+
+// --- Toolbar overflow (Word-style): groups collapse rightmost-first into a chevron popup ---
+const TOOLBAR_GROUP_ORDER = ["file", "edit", "structure", "format", "view"];
+let toolbarGroupWidths = [];
+let toolbarChevronWidth = 0;
+let toolbarInterGroupGap = 0;
+
+function initToolbarOverflow() {
+  const toolbar = document.getElementById("toolbar");
+  if (!toolbar) return;
+
+  // 1. Wrap flat button/separator layout into .tb-group divs, split at .tb-sep.
+  //    Moving buttons via appendChild preserves their attached click handlers.
+  const nodes = Array.from(toolbar.childNodes);
+  let groupIdx = 0;
+  let current = document.createElement("div");
+  current.className = "tb-group";
+  current.dataset.group = TOOLBAR_GROUP_ORDER[groupIdx] || `group-${groupIdx}`;
+  const newChildren = [current];
+
+  nodes.forEach((node) => {
+    if (node.nodeType === 1 && node.classList && node.classList.contains("tb-sep")) {
+      groupIdx++;
+      current = document.createElement("div");
+      current.className = "tb-group";
+      current.dataset.group = TOOLBAR_GROUP_ORDER[groupIdx] || `group-${groupIdx}`;
+      newChildren.push(current);
+      // .tb-sep is dropped; visual divider now comes from CSS ::before
+    } else if (node.nodeType === 1) {
+      current.appendChild(node);
+    }
+  });
+
+  toolbar.innerHTML = "";
+  newChildren.forEach((g) => toolbar.appendChild(g));
+
+  // 2. Overflow chevron button appended after all groups
+  const chevron = document.createElement("button");
+  chevron.id = "toolbar-overflow-btn";
+  chevron.className = "tb-btn";
+  chevron.type = "button";
+  chevron.title = "More toolbar items";
+  chevron.setAttribute("aria-label", "More toolbar items");
+  chevron.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 17 11 12 6 7"/><polyline points="13 17 18 12 13 7"/></svg>`;
+  toolbar.appendChild(chevron);
+
+  // 3. Popup container attached to body (absolute positioning)
+  const menu = document.createElement("div");
+  menu.id = "toolbar-overflow-menu";
+  document.body.appendChild(menu);
+
+  // 4. Measure natural widths once, with all groups in toolbar and chevron
+  //    temporarily visible so we know its footprint.
+  requestAnimationFrame(() => {
+    measureToolbarGroups();
+    updateToolbarOverflow();
+  });
+
+  // 5. Chevron click toggles popup
+  chevron.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (menu.classList.contains("open")) {
+      closeOverflowMenu();
+    } else {
+      openOverflowMenu();
+    }
+  });
+
+  // Close popup when clicking a button inside it (the action still fires
+  // via the button's own click handler, which is unaffected by the DOM move)
+  menu.addEventListener("click", (e) => {
+    if (e.target.closest(".tb-btn")) {
+      closeOverflowMenu();
+    }
+  });
+
+  // Close on outside click
+  document.addEventListener("click", (e) => {
+    if (!menu.classList.contains("open")) return;
+    if (menu.contains(e.target)) return;
+    if (chevron.contains(e.target)) return;
+    closeOverflowMenu();
+  });
+
+  // Close on Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && menu.classList.contains("open")) {
+      closeOverflowMenu();
+    }
+  });
+
+  // 6. Recompute on toolbar size change
+  if (typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(() => updateToolbarOverflow());
+    ro.observe(toolbar);
+  } else {
+    window.addEventListener("resize", () => updateToolbarOverflow());
+  }
+}
+
+function measureToolbarGroups() {
+  const toolbar = document.getElementById("toolbar");
+  const chevron = document.getElementById("toolbar-overflow-btn");
+  if (!toolbar) return;
+
+  // Force the chevron to be visible so its width is measurable, but remember
+  // its previous inline display so we can restore it.
+  const prevChevronDisplay = chevron.style.display;
+  chevron.style.visibility = "hidden";
+  chevron.style.display = "inline-flex";
+
+  const groups = Array.from(toolbar.querySelectorAll(".tb-group"));
+  // The first group has no ::before divider; subsequent groups do. Grab that
+  // pseudo-element width by comparing first vs subsequent group offsets, or
+  // just approximate — the CSS uses 1px + 4px + 6px = 11px. Use offsetLeft
+  // deltas for accuracy.
+  toolbarGroupWidths = groups.map((g) => g.getBoundingClientRect().width);
+  if (groups.length >= 2) {
+    const gap =
+      groups[1].getBoundingClientRect().left -
+      groups[0].getBoundingClientRect().right;
+    toolbarInterGroupGap = Math.max(0, gap);
+  } else {
+    toolbarInterGroupGap = 11;
+  }
+  toolbarChevronWidth = chevron.getBoundingClientRect().width;
+
+  chevron.style.display = prevChevronDisplay;
+  chevron.style.visibility = "";
+}
+
+function updateToolbarOverflow() {
+  const toolbar = document.getElementById("toolbar");
+  const chevron = document.getElementById("toolbar-overflow-btn");
+  const menu = document.getElementById("toolbar-overflow-menu");
+  if (!toolbar || !chevron || !menu) return;
+  if (!toolbarGroupWidths.length) return;
+
+  const styles = getComputedStyle(toolbar);
+  const paddingLeft = parseFloat(styles.paddingLeft) || 0;
+  const paddingRight = parseFloat(styles.paddingRight) || 0;
+  const gapBetween = parseFloat(styles.columnGap || styles.gap) || 0;
+
+  const available = toolbar.clientWidth - paddingLeft - paddingRight;
+
+  // Try 1: fit all groups without chevron. Each subsequent group also costs
+  // the between-groups gap (from #toolbar's flex gap + the ::before divider).
+  const perGroupCost = (i) =>
+    toolbarGroupWidths[i] + (i > 0 ? toolbarInterGroupGap + gapBetween : 0);
+
+  let sum = 0;
+  let allFit = true;
+  for (let i = 0; i < toolbarGroupWidths.length; i++) {
+    sum += perGroupCost(i);
+    if (sum > available) {
+      allFit = false;
+      break;
+    }
+  }
+
+  if (allFit) {
+    reflowToolbarGroups(toolbarGroupWidths.length);
+    chevron.classList.remove("visible");
+    return;
+  }
+
+  // Try 2: reserve room for the chevron and greedy-fit from the left
+  const availableWithChevron = available - toolbarChevronWidth - gapBetween;
+  sum = 0;
+  let firstHidden = 0;
+  for (let i = 0; i < toolbarGroupWidths.length; i++) {
+    const cost = perGroupCost(i);
+    if (sum + cost > availableWithChevron) {
+      firstHidden = i;
+      break;
+    }
+    sum += cost;
+    firstHidden = i + 1;
+  }
+
+  // At least ONE group should stay visible if it fits alongside the chevron;
+  // if not even the file group fits, we still keep it visible (overflow-hidden
+  // will clip a pixel at worst, but this is the least-bad UX).
+  if (firstHidden === 0) firstHidden = 1;
+
+  reflowToolbarGroups(firstHidden);
+  chevron.classList.add("visible");
+}
+
+function reflowToolbarGroups(firstHiddenIdx) {
+  const toolbar = document.getElementById("toolbar");
+  const menu = document.getElementById("toolbar-overflow-menu");
+  const chevron = document.getElementById("toolbar-overflow-btn");
+  if (!toolbar || !menu || !chevron) return;
+
+  // Collect all .tb-group elements (in either container) ordered by
+  // original position index.
+  const allGroups = new Array(TOOLBAR_GROUP_ORDER.length);
+  document.querySelectorAll(".tb-group").forEach((g) => {
+    const idx = TOOLBAR_GROUP_ORDER.indexOf(g.dataset.group);
+    if (idx >= 0) allGroups[idx] = g;
+  });
+
+  // Place each group in the correct container, in order.
+  allGroups.forEach((group, idx) => {
+    if (!group) return;
+    if (idx < firstHiddenIdx) {
+      // Belongs in toolbar (before chevron)
+      if (group.parentNode !== toolbar || group.nextSibling !== chevron) {
+        toolbar.insertBefore(group, chevron);
+      }
+    } else {
+      // Belongs in popup
+      if (group.parentNode !== menu) {
+        menu.appendChild(group);
+      }
+    }
+  });
+
+  // If the popup is now empty and the menu was open, close it.
+  if (!menu.children.length && menu.classList.contains("open")) {
+    menu.classList.remove("open");
+  }
+}
+
+function openOverflowMenu() {
+  const chevron = document.getElementById("toolbar-overflow-btn");
+  const menu = document.getElementById("toolbar-overflow-menu");
+  if (!chevron || !menu || !menu.children.length) return;
+  const rect = chevron.getBoundingClientRect();
+  // Position below the chevron, right-aligned to it
+  menu.style.top = `${rect.bottom + 2}px`;
+  menu.style.left = "auto";
+  menu.style.right = `${Math.max(4, window.innerWidth - rect.right)}px`;
+  menu.classList.add("open");
+}
+
+function closeOverflowMenu() {
+  const menu = document.getElementById("toolbar-overflow-menu");
+  if (menu) menu.classList.remove("open");
 }
 
 // --- Unified Action Handler ---
