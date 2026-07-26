@@ -9,23 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+_Nothing yet._
+
+---
+
+## [0.2.0] - 2026-07-26
+
+The "not just a viewer anymore" release. MarkView graduates from a read-only
+renderer to a full Markdown editor while staying a single portable `.exe`.
+
+### Distribution
 
 - Portable-build convenience: `npm run build` now copies the compiled
   `markview.exe` to the project root as `MarkView.exe` via
   `scripts/copy-portable.mjs`.
-- Release workflow uploads the renamed portable `.exe` alongside the NSIS
-  installer on tagged releases.
+- Release workflow uploads the renamed portable `.exe`
+  (`MarkView-vX.Y.Z-portable.exe`) alongside the NSIS installer on tagged
+  releases.
+- Version numbers reconciled — `Cargo.toml`, `tauri.conf.json`, and the
+  About modal now all report `0.2.0`.
 - Project documentation set: `ARCHITECTURE.md`, `PRODUCT_SPEC.md`,
   `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`,
   plus GitHub issue and pull-request templates.
-
----
-
-## [0.2.0]
-
-The "not just a viewer anymore" release. MarkView graduates from a read-only
-renderer to a full Markdown editor while staying a single portable `.exe`.
 
 ### Added
 
@@ -81,8 +86,6 @@ renderer to a full Markdown editor while staying a single portable `.exe`.
 
 ### Known gaps
 
-- `Cargo.toml` / `tauri.conf.json` still report version `0.1.0` while the
-  About modal reports `0.2.0`. The next release will reconcile these.
 - Rust exposes `get_last_file` but the frontend never calls it — last-file
   restore is not wired up.
 - `lib/html-docx.js` is bundled but unused (superseded by `lib/docx.umd.js`).
