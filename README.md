@@ -125,9 +125,29 @@ Two builds are attached to every release:
 
 ## Screenshots
 
-> _Coming soon — screenshots and a short screen recording of the three view
-> modes, dark mode, and DOCX export are being staged for `design-assets/`.
-> Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)._
+<div align="center">
+
+**Rendered view — light mode**
+
+<img src="design-assets/screenshots/rendered-light.png" alt="MarkView rendered view in light mode" width="880">
+
+**Rendered view — dark mode** (`Ctrl+Shift+D`)
+
+<img src="design-assets/screenshots/rendered-dark.png" alt="MarkView rendered view in dark mode" width="880">
+
+**Split view** (`Ctrl+3`) — live preview + editable source, side by side
+
+<img src="design-assets/screenshots/split.png" alt="MarkView split view showing rendered preview and Markdown source" width="880">
+
+**Code view** (`Ctrl+2`) — raw Markdown editor with toggling format markers
+
+<img src="design-assets/screenshots/code.png" alt="MarkView code view showing raw Markdown source" width="880">
+
+</div>
+
+_Screenshots are captured with `scripts/screenshot.ps1` against
+`design-assets/showcase.md` — see [CONTRIBUTING.md](CONTRIBUTING.md) if
+you want to regenerate them._
 
 ---
 

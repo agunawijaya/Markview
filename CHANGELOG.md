@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- Screenshots section in `README.md` (rendered light + dark, split, code).
+- `design-assets/showcase.md` — reference document used to capture the
+  screenshots.
+- `scripts/screenshot.ps1` — PowerShell utility that launches MarkView with
+  a given `.md`, positions the window, and captures a PNG. Supports
+  `-SendKeys` to switch view modes or toggle dark mode before capture.
 
 ---
 
