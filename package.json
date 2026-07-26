@@ -4,7 +4,9 @@
   "description": "Portable Markdown viewer for Windows 11, built with Tauri 2.",
   "scripts": {
     "dev": "tauri dev",
-    "build": "tauri build",
+    "build": "tauri build && node scripts/copy-portable.mjs",
+    "build:tauri": "tauri build",
+    "postbuild": "node scripts/copy-portable.mjs",
     "tauri": "tauri"
   },
   "keywords": ["markdown", "viewer", "tauri", "portable", "mermaid"],

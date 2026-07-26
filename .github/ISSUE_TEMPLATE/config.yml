@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/agunawijaya/markview/security/advisories/new
+    about: Please report security issues privately via GitHub Security Advisories — see SECURITY.md.
+  - name: Question or discussion
+    url: https://github.com/agunawijaya/markview/discussions
+    about: Ask usage questions or discuss ideas in Discussions instead of opening an issue.
