@@ -840,7 +840,7 @@ async function doNewWindow() {
     const label = "main_" + windowCounter;
     new WebviewWindow(label, {
       url: "index.html",
-      title: "MarkView",
+      title: "Markview",
       width: 1100,
       height: 750,
       minWidth: 600,
@@ -866,7 +866,7 @@ async function doOpen() {
           await invoke("store_pending_file", { label, filePath: selected });
           new WebviewWindow(label, {
             url: "index.html",
-            title: "MarkView",
+            title: "Markview",
             width: 1100,
             height: 750,
             minWidth: 600,
@@ -1611,9 +1611,9 @@ async function updateWindowTitle(filename) {
   let title;
   if (filename) {
     const prefix = isDirty ? "\u25CF " : "";
-    title = prefix + filename + " - MarkView";
+    title = prefix + filename + " - Markview";
   } else {
-    title = "MarkView";
+    title = "Markview";
   }
   document.title = title;
   try {

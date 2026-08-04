@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **MarkView** are documented in this file.
+All notable changes to **Markview** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Screenshots section in `README.md` (rendered light + dark, split, code).
 - `design-assets/showcase.md` — reference document used to capture the
   screenshots.
-- `scripts/screenshot.ps1` — PowerShell utility that launches MarkView with
+- `scripts/screenshot.ps1` — PowerShell utility that launches Markview with
   a given `.md`, positions the window, and captures a PNG. Supports
   `-SendKeys` to switch view modes or toggle dark mode before capture.
 
@@ -22,16 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2026-07-26
 
-The "not just a viewer anymore" release. MarkView graduates from a read-only
+The "not just a viewer anymore" release. Markview graduates from a read-only
 renderer to a full Markdown editor while staying a single portable `.exe`.
 
 ### Distribution
 
 - Portable-build convenience: `npm run build` now copies the compiled
-  `markview.exe` to the project root as `MarkView.exe` via
+  `markview.exe` to the project root as `Markview.exe` via
   `scripts/copy-portable.mjs`.
 - Release workflow uploads the renamed portable `.exe`
-  (`MarkView-vX.Y.Z-portable.exe`) alongside the NSIS installer on tagged
+  (`Markview-vX.Y.Z-portable.exe`) alongside the NSIS installer on tagged
   releases.
 - Version numbers reconciled — `Cargo.toml`, `tauri.conf.json`, and the
   About modal now all report `0.2.0`.
@@ -63,7 +63,7 @@ renderer to a full Markdown editor while staying a single portable `.exe`.
   insert submenu, cut / copy / paste).
 - **New Window** menu action — opens an independent Tauri window sharing
   the same backend state.
-- **CLI argument opening** — `MarkView.exe file.md` opens the file on launch.
+- **CLI argument opening** — `Markview.exe file.md` opens the file on launch.
 - **Reading Width presets** in the status bar: Optimal (65ch), Fit to Width,
   Default (860 px). Persisted per user.
 - **Zoom controls** (50–300 %) in the status bar: slider, `−` / `+`,

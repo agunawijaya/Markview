@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the internal architecture of **MarkView** — how the
+This document describes the internal architecture of **Markview** — how the
 Rust backend, the vanilla-JS frontend, and the bundled libraries fit together
 inside a single Tauri 2 application.
 
@@ -93,7 +93,7 @@ Every user action follows one of three loops:
 
 ## 3. Process & window model
 
-MarkView runs as one Tauri process. Each window is a separate `WebviewWindow`
+Markview runs as one Tauri process. Each window is a separate `WebviewWindow`
 sharing the same Rust `AppState`.
 
 ```mermaid
@@ -379,14 +379,14 @@ position, scroll position.
 flowchart LR
     Dev[Developer machine]
     Dev -->|npm run build| Tauri[cargo tauri build]
-    Tauri -->|NSIS installer| Installer[MarkView_x.y.z_x64-setup.exe]
+    Tauri -->|NSIS installer| Installer[Markview_x.y.z_x64-setup.exe]
     Tauri -->|raw exe| Portable1[src-tauri/target/release/markview.exe]
-    Portable1 -->|scripts/copy-portable.mjs| Portable2[MarkView.exe at project root]
+    Portable1 -->|scripts/copy-portable.mjs| Portable2[Markview.exe at project root]
 
     subgraph CI[GitHub Actions - .github/workflows/release.yml]
         Trigger[Tag push vX.Y.Z] --> CIBuild[tauri build on windows-latest]
         CIBuild --> CIInstaller[NSIS installer]
-        CIBuild --> CIPortable[MarkView-vX.Y.Z-portable.exe]
+        CIBuild --> CIPortable[Markview-vX.Y.Z-portable.exe]
         CIInstaller --> Release[GitHub Release assets]
         CIPortable --> Release
     end
@@ -394,7 +394,7 @@ flowchart LR
 
 - **Local dev**: `npm run build` runs `tauri build`, then
   `scripts/copy-portable.mjs` copies the built `markview.exe` to the project
-  root as `MarkView.exe`. That root copy is gitignored — it exists so the
+  root as `Markview.exe`. That root copy is gitignored — it exists so the
   developer can hand-share the current build.
 - **CI**: tagging `vX.Y.Z` triggers Windows build, uploads _both_ the NSIS
   installer and the renamed portable exe as release assets.

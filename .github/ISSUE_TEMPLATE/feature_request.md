@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest a new capability for MarkView
+about: Suggest a new capability for Markview
 title: "[Feature] "
 labels: enhancement
 assignees: ''
@@ -15,7 +15,7 @@ a solution. Requests without a concrete user problem rarely land.
 
 ## Proposed solution
 
-<!-- How would you like MarkView to solve this? -->
+<!-- How would you like Markview to solve this? -->
 
 ## Alternatives you have considered
 
@@ -23,7 +23,7 @@ a solution. Requests without a concrete user problem rarely land.
 
 ## Scope check
 
-MarkView deliberately keeps a small feature surface. Please confirm your
+Markview deliberately keeps a small feature surface. Please confirm your
 request is not one of the explicit non-goals in
 [PRODUCT_SPEC.md § 7](../../PRODUCT_SPEC.md#7-what-we-deliberately-do-not-build):
 

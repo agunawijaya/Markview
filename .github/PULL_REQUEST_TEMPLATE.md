@@ -29,7 +29,7 @@
 - [ ] File watcher does not loop after Save (edit → save → confirm no re-render flash).
 - [ ] For toolbar / menu changes: overflow chevron still collapses groups correctly on narrow windows.
 - [ ] For export changes: exercised HTML, PDF, and **both** DOCX modes.
-- [ ] `npm run build` completes and the root `MarkView.exe` still launches and opens a file.
+- [ ] `npm run build` completes and the root `Markview.exe` still launches and opens a file.
 
 ## Changelog
 

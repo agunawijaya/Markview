@@ -1,4 +1,4 @@
-# Take a screenshot of the MarkView window.
+# Take a screenshot of the Markview window.
 #
 # Usage:
 #   scripts\screenshot.ps1 -DocPath design-assets/showcase.md -OutPath design-assets/screenshots/rendered-light.png
@@ -63,7 +63,7 @@ while ((Get-Date) -lt $deadline -and $hwnd -eq [IntPtr]::Zero) {
         if ($p.MainWindowHandle -ne [IntPtr]::Zero) { $hwnd = $p.MainWindowHandle }
     } catch { }
 }
-if ($hwnd -eq [IntPtr]::Zero) { throw "MarkView window did not appear within 20s" }
+if ($hwnd -eq [IntPtr]::Zero) { throw "Markview window did not appear within 20s" }
 
 # SWP_SHOWWINDOW = 0x40
 [Win32]::SetWindowPos($hwnd, [IntPtr]::Zero, $X, $Y, $Width, $Height, 0x40) | Out-Null

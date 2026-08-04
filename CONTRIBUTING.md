@@ -1,6 +1,6 @@
-# Contributing to MarkView
+# Contributing to Markview
 
-Thanks for your interest in improving MarkView! This document explains how
+Thanks for your interest in improving Markview! This document explains how
 to set up a development environment, the code conventions we follow, and
 what a good pull request looks like.
 
@@ -43,17 +43,17 @@ npm install
 
 ```powershell
 npm run dev          # dev mode with hot reload for the Rust side
-npm run build        # release build + copies MarkView.exe to project root
+npm run build        # release build + copies Markview.exe to project root
 npm run build:tauri  # release build only (skip the portable copy step)
 ```
 
 The release build produces:
 
-- **NSIS installer** — `src-tauri/target/release/bundle/nsis/MarkView_*.exe`
+- **NSIS installer** — `src-tauri/target/release/bundle/nsis/Markview_*.exe`
 - **Portable exe** — `src-tauri/target/release/markview.exe`, also copied to
-  `MarkView.exe` at the project root by `scripts/copy-portable.mjs`.
+  `Markview.exe` at the project root by `scripts/copy-portable.mjs`.
 
-The root `MarkView.exe` is gitignored — it exists so you can hand-share the
+The root `Markview.exe` is gitignored — it exists so you can hand-share the
 current build without hunting through `target/`.
 
 ---
@@ -121,7 +121,7 @@ For a full walkthrough of the architecture, see [ARCHITECTURE.md](ARCHITECTURE.m
 
 ## 5. Testing your change
 
-MarkView does not currently ship with an automated test suite (the surface
+Markview does not currently ship with an automated test suite (the surface
 is largely UI). Please **manually verify** the following before opening a PR:
 
 - [ ] `npm run dev` launches without console errors.
@@ -132,7 +132,7 @@ is largely UI). Please **manually verify** the following before opening a PR:
 - [ ] For toolbar / menu changes: overflow chevron still collapses groups
       correctly when you narrow the window.
 - [ ] For export changes: exercise HTML, PDF, and _both_ DOCX modes.
-- [ ] `npm run build` completes and the portable `MarkView.exe` at the project
+- [ ] `npm run build` completes and the portable `Markview.exe` at the project
       root launches and opens a `.md` file.
 
 If you add a new preference or persisted setting, verify it survives a

@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Something in MarkView is broken or behaving unexpectedly
+about: Something in Markview is broken or behaving unexpectedly
 title: "[Bug] "
 labels: bug
 assignees: ''
@@ -37,7 +37,7 @@ snippet that reproduces it inside the fence below.
 
 ## Environment
 
-- **MarkView version:** <!-- see Help → About -->
+- **Markview version:** <!-- see Help → About -->
 - **Windows version:** <!-- e.g. Windows 11 23H2 -->
 - **WebView2 runtime version:** <!-- optional; check Settings → Apps -->
 - **How you installed:** <!-- portable .exe / NSIS installer / built from source -->

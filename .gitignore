@@ -5,7 +5,7 @@ src-tauri/gen/schemas/
 
 # Portable exe copied to project root by scripts/copy-portable.mjs
 # after `npm run build`. Distributed via GitHub Releases, not committed.
-/MarkView.exe
+/Markview.exe
 
 # Backup folder kept locally
 src-tauri/icons.backup/

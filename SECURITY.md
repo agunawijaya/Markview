@@ -1,6 +1,6 @@
 # Security Policy
 
-We take security of MarkView seriously. This document explains which
+We take security of Markview seriously. This document explains which
 versions receive security updates and how to report a vulnerability
 responsibly.
 
@@ -8,7 +8,7 @@ responsibly.
 
 ## Supported versions
 
-MarkView is a young project. We support security fixes for the **latest
+Markview is a young project. We support security fixes for the **latest
 released minor version only**.
 
 | Version | Supported          |
@@ -30,14 +30,14 @@ Instead, report privately using **one** of the following channels:
    [github.com/agunawijaya/markview/security/advisories/new](https://github.com/agunawijaya/markview/security/advisories/new)
 
 2. **Email.** Send a report to **agunawijaya@gmail.com** with the subject
-   line `MarkView security report`.
+   line `Markview security report`.
 
 Please include, if possible:
 
 - A clear description of the issue and its impact.
 - Steps to reproduce (a minimal `.md` file that triggers the issue, if
   applicable).
-- The MarkView version and Windows build you tested on.
+- The Markview version and Windows build you tested on.
 - Any suggested mitigation.
 
 ---
@@ -58,7 +58,7 @@ if you prefer).
 
 In scope:
 
-- Local privilege escalation via the MarkView binary or its bundled
+- Local privilege escalation via the Markview binary or its bundled
   libraries.
 - Arbitrary file read / write / execution triggered by opening a crafted
   `.md` file or dropping a crafted file onto the window.
@@ -71,7 +71,7 @@ In scope:
 Out of scope (please do not report these):
 
 - Attacks that require the user to already have local write access to the
-  MarkView data directory.
+  Markview data directory.
 - Denial of service from opening enormous (`> 100 MB`) Markdown files —
   this is expected behavior.
 - Issues in Windows itself, WebView2, or the user's system browser.
@@ -82,14 +82,14 @@ Out of scope (please do not report these):
 
 ## Known security properties
 
-MarkView is designed to be **network-silent** at runtime:
+Markview is designed to be **network-silent** at runtime:
 
 - No telemetry.
 - No analytics.
 - No auto-update pings.
 - No CDN references — every dependency ships bundled in `src/lib/`.
 
-The only network calls MarkView _can_ make are triggered by explicit user
+The only network calls Markview _can_ make are triggered by explicit user
 action (clicking an external `http(s)` link opens the system browser via
 `shell.open`).
 
@@ -99,7 +99,7 @@ The Tauri CSP is:
 default-src 'self';
 script-src 'self' 'unsafe-inline' 'unsafe-eval';
 style-src  'self' 'unsafe-inline';
-img-src    'self' asset: https: http: data:;
+img-src    'self' asset: http://asset.localhost https: http: data:;
 font-src   'self' data:;
 ```
 
@@ -110,4 +110,4 @@ Mermaid and DOCX runtimes; we are open to PRs that eliminate them.
 
 ## Thanks
 
-Thank you for helping keep MarkView and its users safe.
+Thank you for helping keep Markview and its users safe.

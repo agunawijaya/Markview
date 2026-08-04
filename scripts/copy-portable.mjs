@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copies the portable Tauri build output to the project root as MarkView.exe
+// Copies the portable Tauri build output to the project root as Markview.exe
 // so it can be shared or downloaded as a single self-contained executable.
 //
 // Runs automatically after `npm run build` (see package.json).
@@ -24,12 +24,12 @@ if (!source) {
   process.exit(1);
 }
 
-const destination = join(projectRoot, "MarkView.exe");
+const destination = join(projectRoot, "Markview.exe");
 
 mkdirSync(dirname(destination), { recursive: true });
 copyFileSync(source, destination);
 
 const sizeMb = (statSync(destination).size / (1024 * 1024)).toFixed(2);
-console.log(`[copy-portable] MarkView.exe copied to project root (${sizeMb} MB).`);
+console.log(`[copy-portable] Markview.exe copied to project root (${sizeMb} MB).`);
 console.log(`[copy-portable] Source:      ${source}`);
 console.log(`[copy-portable] Destination: ${destination}`);

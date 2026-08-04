@@ -1,6 +1,6 @@
 <div align="center">
 
-# MarkView
+# Markview
 
 ### The Markdown editor that fits in a single `.exe`.
 
@@ -13,23 +13,23 @@ No installer. No account. No telemetry. No internet needed.
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB.svg?style=flat-square)](https://tauri.app/)
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6.svg?style=flat-square)](#requirements)
 
-**[⬇  Download MarkView.exe](https://github.com/agunawijaya/markview/releases/latest)** &nbsp;·&nbsp; **[📖  Product Spec](PRODUCT_SPEC.md)** &nbsp;·&nbsp; **[🏗️  Architecture](ARCHITECTURE.md)** &nbsp;·&nbsp; **[📝  Changelog](CHANGELOG.md)**
+**[⬇  Download Markview.exe](https://github.com/agunawijaya/markview/releases/latest)** &nbsp;·&nbsp; **[📖  Product Spec](PRODUCT_SPEC.md)** &nbsp;·&nbsp; **[🏗️  Architecture](ARCHITECTURE.md)** &nbsp;·&nbsp; **[📝  Changelog](CHANGELOG.md)**
 
 </div>
 
 ---
 
-## Why MarkView?
+## Why Markview?
 
 Every other Markdown app asks you to install something, sign in somewhere, or
 trust a browser tab with your notes.
 
-**MarkView is a single `.exe`.** Drop it anywhere — Desktop, USB stick,
+**Markview is a single `.exe`.** Drop it anywhere — Desktop, USB stick,
 network share — double-click, and you're editing Markdown with a WYSIWYG
 renderer, three view modes, and Word-quality DOCX export. That's it. No
 background service. No update pings. No account.
 
-|  | MarkView | Typical Electron editor | Web-based editor |
+|  | Markview | Typical Electron editor | Web-based editor |
 | --- | :---: | :---: | :---: |
 | Single portable `.exe` | ✅ | ❌ (installer + `%AppData%`) | ❌ (browser tab) |
 | Runs offline forever | ✅ | ⚠️ (some phone home) | ❌ |
@@ -46,7 +46,7 @@ background service. No update pings. No account.
 
 ### Three view modes, one keystroke away
 
-- **Rendered** (`Ctrl+1`) — WYSIWYG. Type in the rendered preview; MarkView
+- **Rendered** (`Ctrl+1`) — WYSIWYG. Type in the rendered preview; Markview
   round-trips your edits back to Markdown automatically.
 - **Code** (`Ctrl+2`) — raw Markdown textarea. Format buttons wrap
   _and_ unwrap the selection.
@@ -98,7 +98,7 @@ background service. No update pings. No account.
 
 <div align="center">
 
-### [⬇  Download the latest MarkView.exe](https://github.com/agunawijaya/markview/releases/latest)
+### [⬇  Download the latest Markview.exe](https://github.com/agunawijaya/markview/releases/latest)
 
 _No install. No admin rights. Just download and run._
 
@@ -108,8 +108,8 @@ Two builds are attached to every release:
 
 | Build | For you if... |
 | --- | --- |
-| **MarkView-vX.Y.Z-portable.exe** | You want a single file. Put it on a USB, on a network share, or in your `Downloads` folder. Runs from wherever you drop it. |
-| **MarkView_X.Y.Z_x64-setup.exe** | You want Start Menu integration and file-association prompts. Standard NSIS installer. |
+| **Markview-vX.Y.Z-portable.exe** | You want a single file. Put it on a USB, on a network share, or in your `Downloads` folder. Runs from wherever you drop it. |
+| **Markview_X.Y.Z_x64-setup.exe** | You want Start Menu integration and file-association prompts. Standard NSIS installer. |
 
 ---
 
@@ -129,19 +129,19 @@ Two builds are attached to every release:
 
 **Rendered view — light mode**
 
-<img src="design-assets/screenshots/rendered-light.png" alt="MarkView rendered view in light mode" width="880">
+<img src="design-assets/screenshots/rendered-light.png" alt="Markview rendered view in light mode" width="880">
 
 **Rendered view — dark mode** (`Ctrl+Shift+D`)
 
-<img src="design-assets/screenshots/rendered-dark.png" alt="MarkView rendered view in dark mode" width="880">
+<img src="design-assets/screenshots/rendered-dark.png" alt="Markview rendered view in dark mode" width="880">
 
 **Split view** (`Ctrl+3`) — live preview + editable source, side by side
 
-<img src="design-assets/screenshots/split.png" alt="MarkView split view showing rendered preview and Markdown source" width="880">
+<img src="design-assets/screenshots/split.png" alt="Markview split view showing rendered preview and Markdown source" width="880">
 
 **Code view** (`Ctrl+2`) — raw Markdown editor with toggling format markers
 
-<img src="design-assets/screenshots/code.png" alt="MarkView code view showing raw Markdown source" width="880">
+<img src="design-assets/screenshots/code.png" alt="Markview code view showing raw Markdown source" width="880">
 
 </div>
 
@@ -212,23 +212,23 @@ cd markview
 npm install
 
 npm run dev          # dev mode
-npm run build        # release build + copies MarkView.exe to project root
+npm run build        # release build + copies Markview.exe to project root
 ```
 
 After `npm run build`, the outputs are:
 
-- `MarkView.exe` — portable, at the **project root** (copied by
+- `Markview.exe` — portable, at the **project root** (copied by
   `scripts/copy-portable.mjs`)
-- `src-tauri/target/release/bundle/nsis/MarkView_*.exe` — NSIS installer
+- `src-tauri/target/release/bundle/nsis/Markview_*.exe` — NSIS installer
 
-The root `MarkView.exe` is gitignored — it exists so you can hand it to
+The root `Markview.exe` is gitignored — it exists so you can hand it to
 someone directly.
 
 ---
 
 ## Project docs
 
-- **[PRODUCT_SPEC.md](PRODUCT_SPEC.md)** — what MarkView does, for whom, and
+- **[PRODUCT_SPEC.md](PRODUCT_SPEC.md)** — what Markview does, for whom, and
   what it explicitly does not do.
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — how the app is built, with
   diagrams of the frontend/backend split, view-mode state machine, render
@@ -308,7 +308,7 @@ assets are already in place.
 
 ## Contributing
 
-MarkView is open to contributions — bug reports, feature ideas, PRs.
+Markview is open to contributions — bug reports, feature ideas, PRs.
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) and
 [PRODUCT_SPEC.md § 7](PRODUCT_SPEC.md#7-what-we-deliberately-do-not-build)
 before starting work.

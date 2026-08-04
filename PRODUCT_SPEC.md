@@ -1,10 +1,10 @@
 # Product Specification
 
-**Product:** MarkView — Portable Markdown Editor for Windows
+**Product:** Markview — Portable Markdown Editor for Windows
 **Version:** 0.2.0
 **Status:** Released
 
-This document describes _what_ MarkView does and _for whom_. For _how_ it is
+This document describes _what_ Markview does and _for whom_. For _how_ it is
 built, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
@@ -18,7 +18,7 @@ Most Markdown editors are one of three things:
 3. **Installer-only desktop apps** that plant themselves in Program Files
    and stay there.
 
-MarkView is none of those. It is a **single portable `.exe`** that opens
+Markview is none of those. It is a **single portable `.exe`** that opens
 `.md` files, renders them beautifully, lets you edit them with three view
 modes, and exports to HTML / PDF / DOCX — with no installer, no telemetry,
 no account, and no internet dependency at runtime.
@@ -30,7 +30,7 @@ under 200 KB of frontend code and a thin Rust shell.
 
 ## 2. Target users
 
-| Persona                     | Why they use MarkView                                                                     |
+| Persona                     | Why they use Markview                                                                     |
 | --------------------------- | ----------------------------------------------------------------------------------------- |
 | **Documentation writers**   | Need a portable, distraction-free renderer with accurate GFM + Mermaid + code highlight.  |
 | **Software engineers**      | Read `README.md` / spec files without opening the whole IDE. Edit and re-export inline.    |
@@ -39,7 +39,7 @@ under 200 KB of frontend code and a thin Rust shell.
 | **IT / support staff**      | Distribute a single `.exe` that "just works" on locked-down corporate Windows machines.   |
 
 Non-user (explicitly): people who want a note-taking system with tags, backlinks,
-vaults, or sync. MarkView is a **file editor**, not a knowledge base.
+vaults, or sync. Markview is a **file editor**, not a knowledge base.
 
 ---
 
@@ -47,7 +47,7 @@ vaults, or sync. MarkView is a **file editor**, not a knowledge base.
 
 - **Primary target:** Windows 11 (WebView2 required — preinstalled on Win 11).
 - **Also runs on:** Windows 10 with WebView2 runtime installed.
-- **Distribution:** single portable `MarkView.exe` (~10-20 MB depending on
+- **Distribution:** single portable `Markview.exe` (~10-20 MB depending on
   Tauri/Rust versions), no installer required. NSIS installer is also
   provided for users who prefer Start Menu integration.
 - **Roadmap:** Linux (WebKitGTK) and Android (Tauri mobile) — port
@@ -63,7 +63,7 @@ vaults, or sync. MarkView is a **file editor**, not a knowledge base.
 journey
     title Opening a .md file for the first time
     section Discovery
-      Download MarkView.exe: 4: User
+      Download Markview.exe: 4: User
       Double-click to launch: 5: User
     section First file
       Drag a .md onto the window: 5: User
@@ -83,7 +83,7 @@ journey
 ```mermaid
 sequenceDiagram
     participant User
-    participant App as MarkView
+    participant App as Markview
     participant FS as File system
     participant Ext as External editor (VS Code)
 
@@ -136,7 +136,7 @@ This is the model: **one window per document**. No tabs.
 | Reload            | `Ctrl+R`       | Re-reads from disk, discards unsaved edits (no confirm).     |
 | Quit              | `Ctrl+Q`       | Unsaved-changes guard.                                       |
 | Drag-and-drop     | —              | `.md` files onto the window trigger open with dirty-guard.   |
-| CLI argument      | —              | `MarkView.exe file.md` opens the file on launch.             |
+| CLI argument      | —              | `Markview.exe file.md` opens the file on launch.             |
 | Live reload       | —              | External edits detected via `notify`; UI re-renders silently.|
 
 ### 5.2 View modes
@@ -327,14 +327,14 @@ product tight:
 - **Typewriter / focus mode.**
 - **Auto-save.**
 - **Word / character goals.**
-- **Cloud sync, accounts, telemetry.** MarkView is a local file editor.
+- **Cloud sync, accounts, telemetry.** Markview is a local file editor.
 - **Custom Reading Width beyond Optimal / Fit / Default.**
 
 ---
 
 ## 8. Success criteria
 
-MarkView is considered successful if:
+Markview is considered successful if:
 
 1. A user can open, edit, save, and export a `.md` file **without reading any docs**.
 2. The rendered output looks _better_ than GitHub's default web renderer.

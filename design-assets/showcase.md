@@ -2,7 +2,7 @@
 
 _Prepared by: Platform Engineering · Draft v0.3_
 
-> This document is used by the MarkView README to showcase what a real
+> This document is used by the Markview README to showcase what a real
 > rendered Markdown file looks like inside the app. The content is fictional.
 
 ## Executive summary
