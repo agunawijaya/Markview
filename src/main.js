@@ -592,27 +592,44 @@ function initWysiwyg() {
     },
   });
 
-  // Remove mermaid wrappers — keep them as fenced code blocks
+  // Mermaid wrapper → fenced code block. Read source from data-mermaid-src
+  // (percent-encoded) because textareas lose their .value across Turndown's
+  // DOM clone, and multi-line textContent gets normalized on re-parse.
   turndownService.addRule("mermaid", {
     filter: function (node) {
       return node.classList && node.classList.contains("mermaid-wrapper");
     },
     replacement: function (content, node) {
-      const editor = node.querySelector(".mermaid-editor");
-      const code = editor ? (editor.value || editor.textContent) : "";
+      const encoded = node.getAttribute("data-mermaid-src") || "";
+      let code = "";
+      try { code = decodeURIComponent(encoded); } catch (e) { code = encoded; }
+      if (!code) {
+        const editor = node.querySelector(".mermaid-editor");
+        code = editor ? (editor.value || editor.textContent || "") : "";
+      }
       return "\n\n```mermaid\n" + code + "\n```\n\n";
     },
   });
 
-  // Code block wrapper → fenced code block
+  // Code block wrapper → fenced code block. Same approach: read from
+  // data-code-src attribute to survive the round-trip.
   turndownService.addRule("codeblockWrapper", {
     filter: function (node) {
       return node.classList && node.classList.contains("codeblock-wrapper");
     },
     replacement: function (content, node) {
-      const editor = node.querySelector(".codeblock-editor");
-      const code = editor ? (editor.value || editor.textContent) : (node.querySelector("pre code") ? node.querySelector("pre code").textContent : "");
-      const lang = node.dataset.lang || "";
+      const encoded = node.getAttribute("data-code-src") || "";
+      let code = "";
+      try { code = decodeURIComponent(encoded); } catch (e) { code = encoded; }
+      if (!code) {
+        const editor = node.querySelector(".codeblock-editor");
+        code = editor ? (editor.value || editor.textContent || "") : "";
+        if (!code) {
+          const codeEl = node.querySelector("pre code");
+          code = codeEl ? codeEl.textContent : "";
+        }
+      }
+      const lang = node.getAttribute("data-lang") || "";
       return "\n\n```" + lang + "\n" + code + "\n```\n\n";
     },
   });
@@ -628,6 +645,102 @@ function initWysiwyg() {
       node.classList.contains("codeblock-editor")
     );
   });
+
+  // Preserve original relative image paths. When rendered, `<img src>` is
+  // rewritten to a Tauri asset.localhost URL; the true path is stashed on
+  // data-original-src so we can restore it here.
+  turndownService.addRule("preserveImagePath", {
+    filter: "img",
+    replacement: function (content, node) {
+      const src = node.getAttribute("data-original-src") || node.getAttribute("src") || "";
+      const alt = node.getAttribute("alt") || "";
+      const title = node.getAttribute("title");
+      const titlePart = title ? ' "' + title.replace(/"/g, '\\"') + '"' : "";
+      return "![" + alt + "](" + src + titlePart + ")";
+    },
+  });
+
+  // GFM tables. Turndown core has no table rule, so cells collapse to
+  // paragraphs by default. This preserves the pipe-table structure.
+  const tableCellContent = (cell) => {
+    // Convert cell content recursively, then collapse to a single line
+    // (GFM tables can't span multiple rows of markdown).
+    let text = turndownService.turndown(cell.innerHTML || "");
+    text = text.replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim();
+    return text || " ";
+  };
+  turndownService.addRule("tableCell", {
+    filter: ["th", "td"],
+    replacement: function () { return ""; }, // handled at row level
+  });
+  turndownService.addRule("tableRow", {
+    filter: "tr",
+    replacement: function () { return ""; }, // handled at table level
+  });
+  turndownService.addRule("tableSection", {
+    filter: ["thead", "tbody", "tfoot"],
+    replacement: function () { return ""; }, // handled at table level
+  });
+  turndownService.addRule("table", {
+    filter: "table",
+    replacement: function (content, node) {
+      const rows = Array.from(node.querySelectorAll("tr"));
+      if (rows.length === 0) return "";
+      const cellsPerRow = rows.map((tr) => Array.from(tr.querySelectorAll("th,td")).map(tableCellContent));
+      const colCount = Math.max(...cellsPerRow.map((r) => r.length));
+      // Pad short rows
+      cellsPerRow.forEach((r) => { while (r.length < colCount) r.push(" "); });
+      const hasHeader = rows[0].querySelector("th") !== null;
+      const header = hasHeader ? cellsPerRow[0] : Array(colCount).fill(" ");
+      const bodyStart = hasHeader ? 1 : 0;
+      const sep = Array(colCount).fill("---");
+      const lines = [];
+      lines.push("| " + header.join(" | ") + " |");
+      lines.push("| " + sep.join(" | ") + " |");
+      for (let i = bodyStart; i < cellsPerRow.length; i++) {
+        lines.push("| " + cellsPerRow[i].join(" | ") + " |");
+      }
+      return "\n\n" + lines.join("\n") + "\n\n";
+    },
+  });
+
+  // List item — override default (which pads with 3 spaces after the marker)
+  // to produce the cleaner `- item` / `1. item` form the rest of the file uses.
+  turndownService.addRule("listItem", {
+    filter: "li",
+    replacement: function (content, node, options) {
+      content = content
+        .replace(/^\n+/, "")
+        .replace(/\n+$/, "\n")
+        .replace(/\n/gm, "\n  ");
+      let prefix = (options.bulletListMarker || "-") + " ";
+      const parent = node.parentNode;
+      if (parent.nodeName === "OL") {
+        const start = parent.getAttribute("start");
+        const index = Array.prototype.indexOf.call(parent.children, node);
+        prefix = (start ? Number(start) + index : index + 1) + ". ";
+      }
+      return prefix + content + (node.nextSibling && !/\n$/.test(content) ? "\n" : "");
+    },
+  });
+
+  // Tame the default escape function. Turndown escapes `[`, `]`, `_`, `-`, etc.
+  // aggressively, which mangles literal prose like `[CATATAN…]` and words with
+  // underscores. Only escape characters that would actually form markdown
+  // syntax in context.
+  turndownService.escape = function (str) {
+    if (!str) return str;
+    return str
+      .replace(/\\/g, "\\\\")
+      .replace(/`/g, "\\`")
+      // Headings and blockquotes only at the start of a line
+      .replace(/^(#{1,6}) /gm, "\\$1 ")
+      .replace(/^>/gm, "\\>")
+      // Ordered-list-looking prefixes only at start of line
+      .replace(/^(\d+)\. /gm, "$1\\. ")
+      // Bullet-list-looking prefixes only at start of line
+      .replace(/^([-+*]) /gm, "\\$1 ");
+  };
 
   const mdContent = document.getElementById("markdown-content");
 
@@ -693,13 +806,19 @@ function wysiwygToMarkdown() {
   if (!turndownService) return;
   const mdContent = document.getElementById("markdown-content");
 
-  // Sync textarea values into textContent/attribute so Turndown's clone can read them.
-  // Turndown clones the DOM, and cloned textareas don't carry live .value.
-  mdContent.querySelectorAll(".codeblock-editor").forEach((ta) => {
-    ta.textContent = ta.value;
+  // Push live editor values onto the wrapper's data attribute so the Turndown
+  // rules can read them after the DOM is serialized + re-parsed. Textareas
+  // lose .value across that boundary and their textContent gets normalized,
+  // so an attribute is the only reliable channel for multi-line content.
+  mdContent.querySelectorAll(".mermaid-wrapper").forEach((wrapper) => {
+    const ta = wrapper.querySelector(".mermaid-editor");
+    if (ta) wrapper.setAttribute("data-mermaid-src", encodeURIComponent(ta.value));
   });
-  mdContent.querySelectorAll(".mermaid-editor").forEach((ta) => {
-    ta.textContent = ta.value;
+  mdContent.querySelectorAll(".codeblock-wrapper").forEach((wrapper) => {
+    const ta = wrapper.querySelector(".codeblock-editor");
+    if (ta) wrapper.setAttribute("data-code-src", encodeURIComponent(ta.value));
+    const langInput = wrapper.querySelector(".codeblock-lang-input");
+    if (langInput) wrapper.setAttribute("data-lang", langInput.value.trim());
   });
 
   // Convert HTML to markdown
@@ -1067,7 +1186,8 @@ function renderMarkdownToElement(content, targetEl) {
     if (lang === "mermaid") {
       const id = "mermaid-" + mermaidBlocks.length + "-" + Date.now();
       mermaidBlocks.push({ id, code: text });
-      return `<div class="mermaid-wrapper" data-mermaid-id="${id}" contenteditable="false">
+      const encoded = encodeURIComponent(text);
+      return `<div class="mermaid-wrapper" data-mermaid-id="${id}" data-mermaid-src="${encoded}" contenteditable="false">
         <div class="mermaid-toolbar">
           <button class="mermaid-toggle-btn" title="Toggle code/diagram">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>
@@ -1087,7 +1207,8 @@ function renderMarkdownToElement(content, targetEl) {
     const highlighted = lang && hljs.getLanguage(lang)
       ? hljs.highlight(text, { language: lang }).value
       : hljs.highlightAuto(text).value;
-    return `<div class="codeblock-wrapper" data-lang="${escapeHtml(langAttr)}" contenteditable="false">
+    const encoded = encodeURIComponent(text);
+    return `<div class="codeblock-wrapper" data-lang="${escapeHtml(langAttr)}" data-code-src="${encoded}" contenteditable="false">
       <div class="codeblock-lang-bar"><input class="codeblock-lang-input" type="text" value="${escapeHtml(langAttr)}" placeholder="language" spellcheck="false"></div>
       <pre><code class="hljs language-${langAttr}">${highlighted}</code></pre>
       <textarea class="codeblock-editor" spellcheck="false">${escapeHtml(text)}</textarea>
@@ -1100,7 +1221,8 @@ function renderMarkdownToElement(content, targetEl) {
       src = convertFileSrc(currentFileDir + "/" + href);
     }
     const titleAttr = title ? ` title="${escapeHtml(title)}"` : "";
-    return `<img src="${src}" alt="${escapeHtml(text || "")}"${titleAttr}>`;
+    const originalAttr = href ? ` data-original-src="${escapeHtml(href)}"` : "";
+    return `<img src="${src}" alt="${escapeHtml(text || "")}"${titleAttr}${originalAttr}>`;
   };
 
   renderer.link = function ({ href, title, tokens }) {
