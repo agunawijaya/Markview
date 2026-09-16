@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LaTeX math** via bundled KaTeX (`lib/katex/`, incl. `.woff2` fonts —
+  no CDN, works offline). Inline `$…$` and block `$$…$$` are tokenized
+  before `marked`'s default inline rules so `_` and `*` inside math are
+  preserved. Malformed math renders as a red inline error rather than
+  crashing the render pass.
+- **DOCX math export as native OMML.** KaTeX's MathML output is translated
+  to `<m:oMath>` (with `<m:sSup>`, `<m:f>`, `<m:rad>`, `<m:nary>`, …) and
+  inserted via `docx`'s `ImportedXmlComponent`, so Word renders the
+  equation with its own math engine, not as an image or literal text.
+  Falls back to shaded LaTeX source if the transform produces nothing
+  usable.
+- **HTML export inlines KaTeX CSS with fonts as base64 data URIs**, so
+  exported files render math offline in any browser.
+- Turndown round-trip preserves original LaTeX (via `data-latex-src`) so
+  WYSIWYG edits never mangle `$…$` blocks.
+- Headless test scripts for math (`scripts/math-roundtrip-test.mjs` and
+  `scripts/math-docx-test.mjs`).
 - Screenshots section in `README.md` (rendered light + dark, split, code).
 - `design-assets/showcase.md` — reference document used to capture the
   screenshots.

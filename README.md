@@ -37,7 +37,7 @@ background service. No update pings. No account.
 | Ships under ~20 MB | ✅ | ❌ (100 MB+) | n/a |
 | WYSIWYG **and** raw source | ✅ | ⚠️ (usually one or the other) | ⚠️ |
 | DOCX export with Word-style typography | ✅ | ❌ | ❌ |
-| Bundled Mermaid + syntax highlighting | ✅ | ⚠️ (extension marketplace) | ⚠️ (CDN) |
+| Bundled Mermaid + LaTeX math + syntax highlighting | ✅ | ⚠️ (extension marketplace) | ⚠️ (CDN) |
 | No install rights required | ✅ | ❌ | n/a |
 
 ---
@@ -70,6 +70,9 @@ background service. No update pings. No account.
 - **Syntax highlighting** for fenced code blocks (highlight.js).
 - **Mermaid diagrams** rendered as SVG. Hover to copy source, copy as PNG,
   or edit inline.
+- **LaTeX math** via bundled KaTeX — `$x^2+y^2=r^2$` inline, `$$…$$` for
+  display equations. Exports as **native Word math (OMML)** in DOCX,
+  self-contained (fonts embedded) in HTML.
 - **Live reload** — external edits (git pull, your favorite editor) trigger
   a silent re-render.
 

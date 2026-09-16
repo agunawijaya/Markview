@@ -19,6 +19,7 @@ This document is about _how_ it does it.
 | Markdown parser      | `marked`                                       |
 | Syntax highlighting  | `highlight.js`                                 |
 | Diagrams             | `mermaid` 11.x (bundled locally)               |
+| Math (LaTeX)         | `katex` 0.16.x (bundled locally, incl. fonts)  |
 | HTML → Markdown      | `turndown` (WYSIWYG round-trip)                |
 | DOCX export          | `docx` UMD                                     |
 | PDF export           | `window.print()` + dedicated print CSS         |
@@ -157,9 +158,9 @@ flowchart LR
 ```
 
 Nothing in `main.js` imports anything — libraries are attached to `window`
-by `<script>` tags in `index.html` (`marked`, `hljs`, `mermaid`, `TurndownService`,
-`docx`, `window.__TAURI__`). This is intentional: no build step for the
-frontend.
+by `<script>` tags in `index.html` (`marked`, `hljs`, `mermaid`, `katex`,
+`TurndownService`, `docx`, `window.__TAURI__`). This is intentional: no
+build step for the frontend.
 
 ### 4.2 View mode state machine
 
@@ -340,6 +341,14 @@ flowchart TB
 - **DOCX (Markdown / Word Style)** share the same node-mapping logic; they
   differ in heading typography only. Both rasterize mermaid SVGs to PNG (canvas
   round-trip), then also append the raw source as a fenced-code paragraph.
+- **Math (LaTeX)** is bundled via KaTeX with a `marked` extension that
+  tokenizes `$…$` / `$$…$$` before default inline rules — so `_` and `*`
+  inside math survive. HTML export inlines KaTeX's CSS with `.woff2` fonts
+  as base64 data URIs (self-contained, no CDN). DOCX export converts KaTeX's
+  MathML output to OMML (`<m:oMath>`), inserted via `docx`'s
+  `ImportedXmlComponent` so Word renders the equation with its native
+  math engine, not as text or an image. The original LaTeX source rides
+  along in a `data-latex-src` attribute for WYSIWYG round-trip.
 
 ---
 
@@ -409,7 +418,6 @@ in project docs):
 - File-tree sidebar (outline sidebar only)
 - Tabs in a single window (multi-window is the model)
 - Auto-save (Save is explicit)
-- Math / LaTeX
 - Spell check
 - Any in-app settings window
 - Tauri `webview.setZoom()` (all zoom is frontend CSS `zoom`)

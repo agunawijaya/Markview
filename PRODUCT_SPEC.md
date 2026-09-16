@@ -274,14 +274,16 @@ Contents:
 
 | Format                  | Fidelity notes                                                                    |
 | ----------------------- | --------------------------------------------------------------------------------- |
-| **HTML**                | Self-contained. All stylesheets inlined. Mermaid script bundled — exported file stays interactive offline. Respects current dark mode. |
+| **HTML**                | Self-contained. All stylesheets inlined, including KaTeX CSS with `.woff2` fonts embedded as base64. Mermaid script bundled — exported file stays interactive offline. Respects current dark mode. |
 | **PDF**                 | Print CSS hides chrome; system print dialog picks the printer / "Save as PDF".    |
 | **DOCX (Markdown Style)** | Uses HTML-rendering typography. H1/H2 have bottom borders. Body font matches HTML. |
 | **DOCX (Word Style)**     | Calibri Light headings, accent blue H1/H2, italic H4, Calibri body. Looks like a native Word doc. |
 
 Both DOCX modes support: tables, nested ordered/unordered lists (up to 9 levels),
 blockquotes, shaded code blocks, embedded images (when resolvable), mermaid
-(rasterized SVG → PNG + fenced source), and hyperlinks.
+(rasterized SVG → PNG + fenced source), hyperlinks, and **LaTeX math** —
+translated to native Word OMML (`<m:oMath>`) so the equation renders with
+Word's built-in math engine, not as text or an image.
 
 ### 5.11 Persistence
 
@@ -321,7 +323,6 @@ product tight:
 - **In-app settings window.** Configuration is exposed inline (Reading Width, Zoom, Dark Mode).
 - **File-tree sidebar.** The outline sidebar IS the sidebar.
 - **Tabs inside a single window.** Multi-document = multi-window.
-- **Math / LaTeX rendering.** Use one of the many web-based math renderers.
 - **Footnotes / YAML front matter special display.** Rendered as-is via GFM.
 - **Spell check.** Use the OS-level spell check where the WebView surfaces it.
 - **Typewriter / focus mode.**
