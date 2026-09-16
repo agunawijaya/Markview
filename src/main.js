@@ -1217,8 +1217,9 @@ function renderMarkdownToElement(content, targetEl) {
 
   renderer.image = function ({ href, title, text }) {
     let src = href;
-    if (currentFileDir && href && !href.startsWith("http") && !href.startsWith("data:")) {
-      src = convertFileSrc(currentFileDir + "/" + href);
+    if (href && !href.startsWith("http") && !href.startsWith("data:")) {
+      const resolved = resolveLocalImagePath(href, currentFileDir);
+      if (resolved) src = convertFileSrc(resolved);
     }
     const titleAttr = title ? ` title="${escapeHtml(title)}"` : "";
     const originalAttr = href ? ` data-original-src="${escapeHtml(href)}"` : "";
@@ -3348,4 +3349,32 @@ function escapeHtml(text) {
 function convertFileSrc(path) {
   const normalized = path.replace(/\\/g, "/");
   return window.__TAURI__.core.convertFileSrc(normalized);
+}
+
+function resolveLocalImagePath(href, baseDir) {
+  const raw = href.replace(/\\/g, "/");
+  const isWinAbsolute = /^[a-zA-Z]:\//.test(raw);
+  const isPosixAbsolute = raw.startsWith("/");
+  let full;
+  if (isWinAbsolute || isPosixAbsolute) {
+    full = raw;
+  } else {
+    if (!baseDir) return null;
+    full = baseDir.replace(/\\/g, "/").replace(/\/+$/, "") + "/" + raw;
+  }
+  const driveMatch = full.match(/^([a-zA-Z]:)\/(.*)$/);
+  const drive = driveMatch ? driveMatch[1] : "";
+  const rest = driveMatch ? driveMatch[2] : full.replace(/^\/+/, "");
+  const leadingSlash = !driveMatch && full.startsWith("/");
+  const stack = [];
+  for (const part of rest.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") {
+      if (stack.length > 0) stack.pop();
+      continue;
+    }
+    stack.push(part);
+  }
+  if (drive) return drive + "/" + stack.join("/");
+  return (leadingSlash ? "/" : "") + stack.join("/");
 }
