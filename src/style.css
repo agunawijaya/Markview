@@ -837,6 +837,52 @@ body.dark #split-markdown-content blockquote { color: #aaa; }
   border-radius: 0 0 6px 6px;
 }
 
+/* === KaTeX Math === */
+.katex-inline {
+  /* Inline: sits in flow with surrounding text. */
+  display: inline-block;
+  vertical-align: middle;
+  user-select: text;
+}
+
+.katex-block {
+  /* Block: display mode — centered, its own line, with breathing room. */
+  display: block;
+  margin: 16px 0;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  user-select: text;
+}
+
+.katex-block .katex-display {
+  /* KaTeX's own display wrapper — reset margin since we control spacing. */
+  margin: 0;
+}
+
+.katex-error,
+.katex-error-msg {
+  color: #cc0000;
+  background: rgba(204, 0, 0, 0.08);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 0.9em;
+}
+
+body.dark .katex-error,
+body.dark .katex-error-msg {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.12);
+}
+
+/* Dark mode: KaTeX default color is inherited (currentColor) so glyphs already
+   swap with body text color. Slight tweak for hover cue on blocks. */
+body.dark .katex-block,
+body.dark .katex-inline {
+  color: var(--text);
+}
+
 /* === Context Menu === */
 #context-menu {
   position: fixed;

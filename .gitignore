@@ -31,6 +31,9 @@ test.docx
 *.exported.html
 *.exported.docx
 *.exported.pdf
+math-test.docx
+math-test-document.xml
+sample_roundtrip.md
 
 # ---------- OS / editor junk ----------
 Thumbs.db

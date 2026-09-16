@@ -22,6 +22,7 @@ let suppressWysiwygInput = false; // suppress input events during programmatic D
 
 // --- Initialization ---
 document.addEventListener("DOMContentLoaded", async () => {
+  initMarkedExtensions();
   initMenu();
   initToolbar();
   initDragDrop();
@@ -37,6 +38,62 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadPreferences();
   await checkStartupFile();
 });
+
+// --- Marked extensions: LaTeX math via KaTeX ---
+// Registered ONCE at startup so `$...$` and `$$...$$` are tokenized before
+// marked's default inline rules see them (otherwise `_` / `*` / `**` inside
+// math get mangled into <em>/<strong>).
+function initMarkedExtensions() {
+  if (typeof marked === "undefined" || typeof katex === "undefined") return;
+  marked.use({
+    extensions: [
+      {
+        name: "mathBlock",
+        level: "block",
+        start(src) { return src.indexOf("$$"); },
+        tokenizer(src) {
+          const match = /^\$\$([\s\S]+?)\$\$(?:\n|$)/.exec(src);
+          if (match) {
+            return { type: "mathBlock", raw: match[0], text: match[1].trim() };
+          }
+        },
+        renderer(token) { return renderMathToken(token.text, true); },
+      },
+      {
+        name: "mathInline",
+        level: "inline",
+        start(src) { return src.indexOf("$"); },
+        tokenizer(src) {
+          if (src.startsWith("$$")) return; // let block handler catch it
+          const match = /^\$(?![\s$])((?:\\\$|[^$\n])+?)(?<!\s)\$(?!\d)/.exec(src);
+          if (match) {
+            return { type: "mathInline", raw: match[0], text: match[1] };
+          }
+        },
+        renderer(token) { return renderMathToken(token.text, false); },
+      },
+    ],
+  });
+}
+
+function renderMathToken(latex, displayMode) {
+  const encoded = encodeURIComponent(latex);
+  let rendered;
+  try {
+    rendered = katex.renderToString(latex, {
+      displayMode,
+      throwOnError: false,
+      output: "htmlAndMathml",
+      strict: "ignore",
+    });
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    rendered = `<span class="katex-error-msg">${escapeHtml(msg)}</span>`;
+  }
+  const tag = displayMode ? "div" : "span";
+  const cls = displayMode ? "katex-block" : "katex-inline";
+  return `<${tag} class="${cls}" data-latex-src="${encoded}" contenteditable="false">${rendered}</${tag}>`;
+}
 
 // --- Check if this window should open a file on startup ---
 async function checkStartupFile() {
@@ -644,6 +701,33 @@ function initWysiwyg() {
       node.classList.contains("codeblock-lang-bar") ||
       node.classList.contains("codeblock-editor")
     );
+  });
+
+  // KaTeX inline math → `$...$`. Source is stashed on data-latex-src at
+  // render time so we round-trip the ORIGINAL LaTeX, not KaTeX's rendered HTML.
+  turndownService.addRule("katexInline", {
+    filter: function (node) {
+      return node.classList && node.classList.contains("katex-inline");
+    },
+    replacement: function (content, node) {
+      const encoded = node.getAttribute("data-latex-src") || "";
+      let src;
+      try { src = decodeURIComponent(encoded); } catch (e) { src = encoded; }
+      return "$" + src + "$";
+    },
+  });
+
+  // KaTeX block math → `$$\n...\n$$`. Same source-preservation pattern.
+  turndownService.addRule("katexBlock", {
+    filter: function (node) {
+      return node.classList && node.classList.contains("katex-block");
+    },
+    replacement: function (content, node) {
+      const encoded = node.getAttribute("data-latex-src") || "";
+      let src;
+      try { src = decodeURIComponent(encoded); } catch (e) { src = encoded; }
+      return "\n\n$$\n" + src + "\n$$\n\n";
+    },
   });
 
   // Preserve original relative image paths. When rendered, `<img src>` is
@@ -2629,6 +2713,51 @@ function doReplaceAll() {
 }
 
 // --- Export HTML ---
+// Bake KaTeX CSS with fonts inlined as base64 data URIs so the exported HTML
+// renders math correctly offline (no CDN, no relative font URLs to break).
+// Only .woff2 is bundled; other format references get replaced with about:invalid
+// so the browser doesn't fetch them.
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function inlineKatexCss() {
+  try {
+    const cssResp = await fetch("lib/katex/katex.min.css");
+    if (!cssResp.ok) return "";
+    let css = await cssResp.text();
+
+    const fontRefs = [...css.matchAll(/url\(fonts\/([^)]+\.woff2)\)/g)];
+    const uniqueFonts = [...new Set(fontRefs.map((m) => m[1]))];
+    const fontMap = {};
+    await Promise.all(uniqueFonts.map(async (fontFile) => {
+      try {
+        const r = await fetch(`lib/katex/fonts/${fontFile}`);
+        if (!r.ok) return;
+        const buf = await r.arrayBuffer();
+        fontMap[fontFile] = `data:font/woff2;base64,${arrayBufferToBase64(buf)}`;
+      } catch (e) {}
+    }));
+
+    css = css.replace(/url\(fonts\/([^)]+)\)/g, (m, filename) => {
+      if (filename.endsWith(".woff2") && fontMap[filename]) {
+        return `url(${fontMap[filename]})`;
+      }
+      return "url(about:invalid)";
+    });
+    return css;
+  } catch (e) {
+    console.warn("inlineKatexCss failed:", e);
+    return "";
+  }
+}
+
 async function doExportHTML() {
   if (!currentRawContent) return;
 
@@ -2642,9 +2771,12 @@ async function doExportHTML() {
   if (!savePath) return;
 
   const mdContent = document.getElementById("markdown-content");
-  let cssText = "";
+  const katexCss = await inlineKatexCss();
+  let cssText = katexCss + "\n";
   try {
     for (const sheet of document.styleSheets) {
+      // Skip katex sheet — we already inlined it with base64 fonts.
+      if (sheet.href && sheet.href.indexOf("katex.min.css") !== -1) continue;
       try {
         for (const rule of sheet.cssRules) {
           cssText += rule.cssText + "\n";
@@ -2706,6 +2838,201 @@ function doExportPDF() {
   window.print();
 }
 
+// --- MathML → OMML transform for DOCX export ---
+// Word's native math format is OMML (Office Math Markup Language). KaTeX
+// already emits MathML as part of its `output: 'htmlAndMathml'` mode; we
+// walk that MathML tree and translate it into OMML XML. The output is a
+// self-contained `<m:oMath xmlns:m="...">...</m:oMath>` string that goes
+// into `ImportedXmlComponent.fromXmlString` from the docx library.
+//
+// This is not a total MathML→OMML translator — it covers the constructs
+// KaTeX actually produces for common LaTeX (subscripts, superscripts,
+// fractions, roots, sums/integrals, matrices, delimiters). Unknown
+// elements degrade to raw text so nothing crashes.
+const OMML_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math";
+
+function escapeXmlText(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+function escapeXmlAttr(s) {
+  return escapeXmlText(s).replace(/"/g, "&quot;").replace(/\r?\n/g, " ");
+}
+function localName(el) {
+  return el.tagName ? el.tagName.toLowerCase().replace(/^.*:/, "") : "";
+}
+function mmlChildren(el) {
+  const out = [];
+  for (const c of el.children) out.push(c);
+  return out;
+}
+function mmlText(el) {
+  return el ? (el.textContent || "").trim() : "";
+}
+
+// Characters that are always styled non-italic in Word math even when written
+// with <mi>. Multi-char identifiers (function names) also go here.
+const OMML_NARY_CHARS = { "∑": true, "∏": true, "∐": true,
+                          "∫": true, "∬": true, "∭": true,
+                          "∮": true, "⋃": true, "⋂": true,
+                          "⨀": true, "⨁": true, "⨂": true };
+
+function mmlRunToOMML(el, forceStyle) {
+  const tag = localName(el);
+  const text = mmlText(el);
+  if (!text) return "";
+  // <mi> ⇒ italic identifier by default; <mn>/<mo>/<mtext> ⇒ upright.
+  const italic = forceStyle === "i" ? true
+               : forceStyle === "p" ? false
+               : tag === "mi" && text.length === 1 && /[a-zA-Z]/.test(text);
+  const styleXml = italic
+    ? '<m:rPr><m:sty m:val="i"/></m:rPr>'
+    : '<m:rPr><m:sty m:val="p"/></m:rPr>';
+  return `<m:r>${styleXml}<m:t xml:space="preserve">${escapeXmlText(text)}</m:t></m:r>`;
+}
+
+function mmlNodeToOMML(el) {
+  if (!el) return "";
+  if (el.nodeType === 3) {
+    // Bare text node inside a MathML element — treat as identifier text.
+    const t = (el.textContent || "").trim();
+    if (!t) return "";
+    return `<m:r><m:rPr><m:sty m:val="p"/></m:rPr><m:t xml:space="preserve">${escapeXmlText(t)}</m:t></m:r>`;
+  }
+  if (el.nodeType !== 1) return "";
+  const tag = localName(el);
+
+  switch (tag) {
+    case "math":
+    case "mrow":
+    case "mstyle":
+    case "mpadded":
+    case "menclose":
+      return mmlChildren(el).map(mmlNodeToOMML).join("");
+    case "semantics": {
+      // Take only the first (presentation) child; ignore <annotation>.
+      const first = el.firstElementChild;
+      return first ? mmlNodeToOMML(first) : "";
+    }
+    case "annotation":
+    case "annotation-xml":
+      return "";
+    case "mi":
+    case "mn":
+    case "mo":
+    case "mtext":
+    case "ms":
+      return mmlRunToOMML(el);
+    case "mspace":
+      return "";
+    case "msup": {
+      const [base, sup] = mmlChildren(el);
+      return `<m:sSup><m:sSupPr/><m:e>${mmlNodeToOMML(base)}</m:e><m:sup>${mmlNodeToOMML(sup)}</m:sup></m:sSup>`;
+    }
+    case "msub": {
+      const [base, sub] = mmlChildren(el);
+      return `<m:sSub><m:sSubPr/><m:e>${mmlNodeToOMML(base)}</m:e><m:sub>${mmlNodeToOMML(sub)}</m:sub></m:sSub>`;
+    }
+    case "msubsup": {
+      const [base, sub, sup] = mmlChildren(el);
+      // If the base is a large operator (sum, integral, product…), promote to n-ary.
+      const baseText = mmlText(base);
+      if (baseText.length === 1 && OMML_NARY_CHARS[baseText]) {
+        return `<m:nary><m:naryPr><m:chr m:val="${escapeXmlAttr(baseText)}"/><m:limLoc m:val="subSup"/></m:naryPr>`
+          + `<m:sub>${mmlNodeToOMML(sub)}</m:sub><m:sup>${mmlNodeToOMML(sup)}</m:sup><m:e></m:e></m:nary>`;
+      }
+      return `<m:sSubSup><m:sSubSupPr/><m:e>${mmlNodeToOMML(base)}</m:e>`
+        + `<m:sub>${mmlNodeToOMML(sub)}</m:sub><m:sup>${mmlNodeToOMML(sup)}</m:sup></m:sSubSup>`;
+    }
+    case "mfrac": {
+      const [num, den] = mmlChildren(el);
+      return `<m:f><m:fPr/><m:num>${mmlNodeToOMML(num)}</m:num><m:den>${mmlNodeToOMML(den)}</m:den></m:f>`;
+    }
+    case "msqrt":
+      return `<m:rad><m:radPr><m:degHide m:val="1"/></m:radPr><m:deg/>`
+        + `<m:e>${mmlChildren(el).map(mmlNodeToOMML).join("")}</m:e></m:rad>`;
+    case "mroot": {
+      const [radicand, degree] = mmlChildren(el);
+      return `<m:rad><m:radPr/><m:deg>${mmlNodeToOMML(degree)}</m:deg><m:e>${mmlNodeToOMML(radicand)}</m:e></m:rad>`;
+    }
+    case "munder": {
+      const [base, lim] = mmlChildren(el);
+      const baseText = mmlText(base);
+      if (baseText.length === 1 && OMML_NARY_CHARS[baseText]) {
+        return `<m:nary><m:naryPr><m:chr m:val="${escapeXmlAttr(baseText)}"/><m:limLoc m:val="undOvr"/></m:naryPr>`
+          + `<m:sub>${mmlNodeToOMML(lim)}</m:sub><m:sup></m:sup><m:e></m:e></m:nary>`;
+      }
+      return `<m:limLow><m:limLowPr/><m:e>${mmlNodeToOMML(base)}</m:e><m:lim>${mmlNodeToOMML(lim)}</m:lim></m:limLow>`;
+    }
+    case "mover": {
+      const [base, lim] = mmlChildren(el);
+      const accent = el.getAttribute("accent") === "true";
+      if (accent) {
+        const chr = mmlText(lim) || "̄";
+        return `<m:acc><m:accPr><m:chr m:val="${escapeXmlAttr(chr)}"/></m:accPr><m:e>${mmlNodeToOMML(base)}</m:e></m:acc>`;
+      }
+      return `<m:limUpp><m:limUppPr/><m:e>${mmlNodeToOMML(base)}</m:e><m:lim>${mmlNodeToOMML(lim)}</m:lim></m:limUpp>`;
+    }
+    case "munderover": {
+      const [base, sub, sup] = mmlChildren(el);
+      const baseText = mmlText(base);
+      if (baseText.length === 1 && OMML_NARY_CHARS[baseText]) {
+        return `<m:nary><m:naryPr><m:chr m:val="${escapeXmlAttr(baseText)}"/><m:limLoc m:val="undOvr"/></m:naryPr>`
+          + `<m:sub>${mmlNodeToOMML(sub)}</m:sub><m:sup>${mmlNodeToOMML(sup)}</m:sup><m:e></m:e></m:nary>`;
+      }
+      return `<m:sSubSup><m:sSubSupPr/><m:e>${mmlNodeToOMML(base)}</m:e>`
+        + `<m:sub>${mmlNodeToOMML(sub)}</m:sub><m:sup>${mmlNodeToOMML(sup)}</m:sup></m:sSubSup>`;
+    }
+    case "mfenced": {
+      // Deprecated in MathML 3 but KaTeX may still emit it in some versions.
+      const open = el.getAttribute("open") || "(";
+      const close = el.getAttribute("close") || ")";
+      const inner = mmlChildren(el).map(mmlNodeToOMML).join("");
+      return `<m:d><m:dPr><m:begChr m:val="${escapeXmlAttr(open)}"/><m:endChr m:val="${escapeXmlAttr(close)}"/></m:dPr><m:e>${inner}</m:e></m:d>`;
+    }
+    case "mtable": {
+      const rows = mmlChildren(el).filter((c) => localName(c) === "mtr");
+      const colCount = rows.reduce((n, r) => Math.max(n, mmlChildren(r).length), 0);
+      const mcs = `<m:mcs><m:mc><m:mcPr><m:count m:val="${colCount || 1}"/><m:mcJc m:val="center"/></m:mcPr></m:mc></m:mcs>`;
+      let out = `<m:m><m:mPr>${mcs}</m:mPr>`;
+      for (const row of rows) {
+        out += "<m:mr>";
+        for (const cell of mmlChildren(row)) {
+          out += `<m:e>${mmlChildren(cell).map(mmlNodeToOMML).join("")}</m:e>`;
+        }
+        out += "</m:mr>";
+      }
+      out += "</m:m>";
+      return out;
+    }
+    default:
+      // Unknown element: try to keep going with children, else emit its text.
+      if (el.children && el.children.length > 0) {
+        return mmlChildren(el).map(mmlNodeToOMML).join("");
+      }
+      return mmlRunToOMML(el, "p");
+  }
+}
+
+// katex-* wrapper → OMML XML string, or null if MathML unavailable / conversion
+// produced nothing usable. The returned string is a full <m:oMath …>…</m:oMath>
+// element with the namespace declared inline (ImportedXmlComponent requires it).
+function katexWrapperToOMMLXml(wrapper) {
+  const mathEl = wrapper.querySelector(".katex-mathml math") || wrapper.querySelector("math");
+  if (!mathEl) return null;
+  let body = "";
+  try {
+    body = mmlNodeToOMML(mathEl);
+  } catch (e) {
+    console.warn("MathML→OMML failed:", e);
+    return null;
+  }
+  if (!body || !body.trim()) return null;
+  return `<m:oMath xmlns:m="${OMML_NS}">${body}</m:oMath>`;
+}
+
 // --- SVG to PNG for DOCX ---
 function svgToPngArrayBuffer(svgElement) {
   return new Promise((resolve, reject) => {
@@ -2755,6 +3082,7 @@ const {
   AlignmentType,
   ExternalHyperlink,
   ImageRun,
+  ImportedXmlComponent,
   Table: DocxTable,
   TableRow: DocxTableRow,
   TableCell: DocxTableCell,
@@ -2879,6 +3207,38 @@ function extractInlineRuns(node, inherited) {
   const tag = node.tagName;
   const newStyle = { ...style };
 
+  // Inline math (KaTeX) — try OMML first (native Word math), fall back to
+  // the LaTeX source styled like inline code so the document is never blank.
+  if (node.classList && node.classList.contains("katex-inline")) {
+    const ommlXml = katexWrapperToOMMLXml(node);
+    if (ommlXml) {
+      try {
+        // docx.js wraps fromXmlString result in an un-named ImportedXmlComponent
+        // (whose tag serializes as literal "<undefined>"). Extract the actual
+        // root element from the wrapper so we only insert real OMML.
+        const wrapped = ImportedXmlComponent.fromXmlString(ommlXml);
+        const cmp = wrapped && wrapped.root && wrapped.root[0] ? wrapped.root[0] : wrapped;
+        runs.push({ ommlComponent: cmp });
+        return runs;
+      } catch (e) {
+        console.warn("OMML inline import failed, falling back to text:", e);
+      }
+    }
+    const encoded = node.getAttribute("data-latex-src") || "";
+    let src = "";
+    try { src = decodeURIComponent(encoded); } catch (e) { src = encoded; }
+    if (src) {
+      runs.push(new TextRun({
+        text: src,
+        font: { name: preset.codeFont },
+        size: preset.sizes.code,
+        color: preset.colors.text,
+        shading: { type: ShadingType.CLEAR, color: "auto", fill: preset.colors.codeBg },
+      }));
+    }
+    return runs;
+  }
+
   if (tag === "STRONG" || tag === "B") newStyle.bold = true;
   if (tag === "EM" || tag === "I") newStyle.italics = true;
   if (tag === "DEL" || tag === "S") newStyle.strike = true;
@@ -2902,6 +3262,9 @@ function resolveInlineRuns(rawRuns, preset) {
   for (const r of rawRuns) {
     if (r instanceof TextRun) {
       resolved.push(r);
+    } else if (r && r.ommlComponent) {
+      // Raw OMML for inline math — docx serializes it into the paragraph's XML.
+      resolved.push(r.ommlComponent);
     } else if (r.linkRun) {
       const { linkRun, url } = r;
       resolved.push(
@@ -3122,6 +3485,55 @@ function convertElementToDocx(el, images, listLevel, preset) {
         children: [new TextRun({ text: "[Image]", italics: true, color: co.blockquoteText, size: preset.sizes.body })],
         spacing: { after: sp.paragraphAfter },
       }));
+    }
+
+  } else if (el.classList && el.classList.contains("katex-block")) {
+    // Block math (KaTeX) — try OMML first: centered paragraph with a single
+    // <m:oMath> child. Word renders this via its native equation engine.
+    // Fall back to LaTeX source styled as a shaded code paragraph if the
+    // MathML→OMML pass produced nothing usable or docx refused to import it.
+    const ommlXml = katexWrapperToOMMLXml(el);
+    let ommlComponent = null;
+    if (ommlXml) {
+      try {
+        // Unwrap the ImportedXmlComponent — see note in the inline math branch.
+        const wrapped = ImportedXmlComponent.fromXmlString(ommlXml);
+        ommlComponent = wrapped && wrapped.root && wrapped.root[0] ? wrapped.root[0] : wrapped;
+      } catch (e) {
+        console.warn("OMML block import failed, falling back to text:", e);
+      }
+    }
+    if (ommlComponent) {
+      items.push(new Paragraph({
+        children: [ommlComponent],
+        alignment: AlignmentType.CENTER,
+        spacing: { before: sp.codeBlockPad, after: sp.paragraphAfter },
+      }));
+    } else {
+      const encoded = el.getAttribute("data-latex-src") || "";
+      let src = "";
+      try { src = decodeURIComponent(encoded); } catch (e) { src = encoded; }
+      const lines = (src || "").split("\n");
+      if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+      for (let i = 0; i < lines.length; i++) {
+        items.push(new Paragraph({
+          children: [new TextRun({
+            text: lines[i] || " ",
+            font: { name: preset.codeFont },
+            size: preset.sizes.code,
+            color: co.text,
+          })],
+          alignment: AlignmentType.CENTER,
+          shading: { type: ShadingType.CLEAR, color: "auto", fill: co.codeBg },
+          spacing: {
+            before: i === 0 ? sp.codeBlockPad : 0,
+            after: i === lines.length - 1 ? sp.codeBlockPad : 0,
+            line: sp.codeBlockLine,
+          },
+          indent: { left: convertInchesToTwip(0.2), right: convertInchesToTwip(0.2) },
+        }));
+      }
+      items.push(new Paragraph({ spacing: { after: sp.paragraphAfter }, children: [] }));
     }
 
   } else if (tag === "DIV" || tag === "SECTION" || tag === "ARTICLE") {
