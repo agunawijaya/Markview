@@ -403,7 +403,7 @@ body.dark #toolbar-overflow-menu {
 #content-area {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   position: relative;
 }
 
@@ -739,7 +739,7 @@ body.dark #split-markdown-content blockquote { color: #aaa; }
 }
 
 /* Split view mermaid styles */
-#split-markdown-content .mermaid-wrapper { position: relative; margin: 0 0 16px; cursor: pointer; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+#split-markdown-content .mermaid-wrapper { position: relative; margin: 0 0 16px; cursor: pointer; border: 1px solid var(--border); border-radius: 6px; overflow-x: auto; }
 #split-markdown-content .mermaid-wrapper .mermaid-diagram { padding: 16px; text-align: center; }
 #split-markdown-content .mermaid-wrapper .mermaid-source { display: none; }
 #split-markdown-content .mermaid-wrapper.show-source .mermaid-diagram { display: none; }
@@ -753,7 +753,7 @@ body.dark #split-markdown-content blockquote { color: #aaa; }
   cursor: pointer;
   border: 1px solid var(--border);
   border-radius: 6px;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .mermaid-wrapper .mermaid-diagram {
