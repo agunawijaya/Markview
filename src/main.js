@@ -1320,12 +1320,18 @@ function renderMarkdownToElement(content, targetEl) {
 
   targetEl.innerHTML = marked.parse(content);
 
-  // External links
+  // Assign stable, slug-based ids to headings so in-document anchor links resolve
+  assignHeadingIds(targetEl);
+
+  // Links: "#..." anchors scroll to the matching heading; http(s) open externally
   targetEl.querySelectorAll("a[data-external-link]").forEach((link) => {
     link.addEventListener("click", (e) => {
       e.preventDefault();
       const href = link.getAttribute("href");
-      if (href && (href.startsWith("http://") || href.startsWith("https://"))) {
+      if (!href) return;
+      if (href.startsWith("#")) {
+        scrollToAnchor(targetEl, href.slice(1));
+      } else if (href.startsWith("http://") || href.startsWith("https://")) {
         shellOpen(href);
       }
     });
@@ -1761,17 +1767,57 @@ function toggleSidebar() {
   savePrefs();
 }
 
+function slugifyHeading(text) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\- ]+/g, "")
+    .replace(/\s+/g, "-");
+}
+
+function assignHeadingIds(contentEl) {
+  const headings = contentEl.querySelectorAll("h1, h2, h3, h4, h5, h6");
+  const seen = {};
+  headings.forEach((heading) => {
+    let slug = slugifyHeading(heading.textContent) || "section";
+    if (seen[slug] !== undefined) {
+      seen[slug]++;
+      slug = `${slug}-${seen[slug]}`;
+    } else {
+      seen[slug] = 0;
+    }
+    heading.id = slug;
+  });
+  return headings;
+}
+
+function scrollToAnchor(contentEl, rawId) {
+  let id = rawId;
+  try {
+    id = decodeURIComponent(rawId);
+  } catch (e) {}
+  const target = contentEl.querySelector(`#${CSS.escape(id)}`);
+  if (!target) return;
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  const sidebarContent = document.getElementById("sidebar-content");
+  const item = sidebarContent.querySelector(`.outline-item[data-target-id="${CSS.escape(id)}"]`);
+  if (item) {
+    sidebarContent.querySelectorAll(".outline-item").forEach((i) => i.classList.remove("active"));
+    item.classList.add("active");
+  }
+}
+
 function buildOutline() {
   const sidebarContent = document.getElementById("sidebar-content");
   sidebarContent.innerHTML = "";
 
   const contentEl = document.getElementById("markdown-content");
-  const headings = contentEl.querySelectorAll("h1, h2, h3, h4, h5, h6");
+  const headings = assignHeadingIds(contentEl);
 
-  headings.forEach((heading, index) => {
+  headings.forEach((heading) => {
     const level = parseInt(heading.tagName.charAt(1));
-    const id = "outline-heading-" + index;
-    heading.id = id;
+    const id = heading.id;
 
     const item = document.createElement("div");
     item.className = "outline-item";
