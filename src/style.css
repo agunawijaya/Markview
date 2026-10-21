@@ -114,6 +114,18 @@ html, body {
   margin-left: 24px;
 }
 
+.menu-entry .menu-check {
+  display: none;
+  color: var(--rw-accent, #0066cc);
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 24px;
+}
+
+.menu-entry.checked .menu-check {
+  display: inline;
+}
+
 .menu-separator {
   height: 1px;
   background: var(--border);

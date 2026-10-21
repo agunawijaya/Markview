@@ -9,6 +9,8 @@ let currentFileDir = null;
 let currentZoom = 100; // percentage 50-300
 let currentReadingWidth = "default"; // "optimal" | "fit" | "default"
 let isDarkMode = false;
+let spellCheckEnabled = false;
+let spellCheckLang = ""; // BCP-47 tag, "" = System Default
 let currentViewMode = "rendered"; // "rendered", "code", "split"
 let currentRawContent = ""; // raw markdown source
 let sidebarOpen = false;
@@ -130,7 +132,13 @@ async function loadPreferences() {
     if (viewMode && ["rendered", "code", "split"].includes(viewMode)) {
       currentViewMode = viewMode;
     }
+    const spellCheck = await invoke("load_preference", { key: "spell_check" });
+    spellCheckEnabled = spellCheck === "true";
+    const spellCheckLangPref = await invoke("load_preference", { key: "spell_check_lang" });
+    spellCheckLang = spellCheckLangPref || "";
   } catch (e) {}
+  applySpellCheck();
+  syncSpellCheckMenuUI();
 
   // Zoom level — localStorage
   try {
@@ -158,6 +166,8 @@ async function savePrefs() {
     await invoke("save_preference", { key: "dark_mode", value: String(isDarkMode) });
     await invoke("save_preference", { key: "sidebar", value: String(sidebarOpen) });
     await invoke("save_preference", { key: "view_mode", value: currentViewMode });
+    await invoke("save_preference", { key: "spell_check", value: String(spellCheckEnabled) });
+    await invoke("save_preference", { key: "spell_check_lang", value: spellCheckLang });
   } catch (e) {}
 }
 
@@ -510,7 +520,13 @@ function handleAction(action) {
     case "view-rendered": setViewMode("rendered"); break;
     case "view-code": setViewMode("code"); break;
     case "view-split": setViewMode("split"); break;
+    case "toggle-spellcheck": doToggleSpellCheck(); break;
     case "about": document.getElementById("about-modal").style.display = "flex"; break;
+    default:
+      if (action.startsWith("spellcheck-lang-")) {
+        doSetSpellCheckLang(action.slice("spellcheck-lang-".length));
+      }
+      break;
   }
 }
 
@@ -1747,6 +1763,51 @@ function doToggleDark() {
   if (currentRawContent) {
     renderPreview();
   }
+}
+
+// --- Spell Check ---
+function applySpellCheck() {
+  const surfaces = [
+    document.getElementById("markdown-content"),
+    document.getElementById("code-textarea"),
+    document.getElementById("split-textarea"),
+  ];
+  surfaces.forEach((el) => {
+    if (!el) return;
+    el.spellcheck = spellCheckEnabled;
+    if (spellCheckLang) {
+      el.setAttribute("lang", spellCheckLang);
+    } else {
+      el.removeAttribute("lang");
+    }
+  });
+}
+
+function syncSpellCheckMenuUI() {
+  const toggleEntry = document.getElementById("menu-spellcheck-toggle");
+  if (toggleEntry) toggleEntry.classList.toggle("checked", spellCheckEnabled);
+
+  const submenu = document.getElementById("menu-spellcheck-lang-submenu");
+  if (submenu) {
+    submenu.querySelectorAll(".menu-entry").forEach((entry) => {
+      const lang = entry.dataset.action.slice("spellcheck-lang-".length);
+      entry.classList.toggle("checked", lang === spellCheckLang);
+    });
+  }
+}
+
+function doToggleSpellCheck() {
+  spellCheckEnabled = !spellCheckEnabled;
+  applySpellCheck();
+  syncSpellCheckMenuUI();
+  savePrefs();
+}
+
+function doSetSpellCheckLang(lang) {
+  spellCheckLang = lang;
+  applySpellCheck();
+  syncSpellCheckMenuUI();
+  savePrefs();
 }
 
 // --- Sidebar ---
