@@ -12,6 +12,7 @@ No installer. No account. No telemetry. No internet needed.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB.svg?style=flat-square)](https://tauri.app/)
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6.svg?style=flat-square)](#requirements)
+[![Platform: Android](https://img.shields.io/badge/platform-Android%207%2B-3DDC84.svg?style=flat-square)](#android-phones--tablets)
 
 **[⬇  Download Markview.exe](https://github.com/agunawijaya/markview/releases/latest)** &nbsp;·&nbsp; **[📖  Product Spec](PRODUCT_SPEC.md)** &nbsp;·&nbsp; **[🏗️  Architecture](ARCHITECTURE.md)** &nbsp;·&nbsp; **[📝  Changelog](CHANGELOG.md)**
 
@@ -113,6 +114,8 @@ Two builds are attached to every release:
 | --- | --- |
 | **Markview-vX.Y.Z-portable.exe** | You want a single file. Put it on a USB, on a network share, or in your `Downloads` folder. Runs from wherever you drop it. |
 | **Markview_X.Y.Z_x64-setup.exe** | You want Start Menu integration and file-association prompts. Standard NSIS installer. |
+
+On a phone or tablet? See [Android](#android-phones--tablets).
 
 ---
 
@@ -243,7 +246,81 @@ someone directly.
 
 ---
 
-## Roadmap: Linux and Android ports
+## Android (phones & tablets)
+
+The same app, built for Android 7.0+ (phones, tablets, foldables). It opens
+documents **for reading first** — tapping the page scrolls and selects text
+instead of popping up the keyboard — and everything else is one tap away.
+
+### Install
+
+Copy `Markview.apk` to the device (USB, Drive, chat — anything) and open
+it. Android will ask once to allow installing apps from that source (Files,
+Chrome, Drive, …). The same APK works on phones and tablets.
+
+### Reading on a small screen
+
+- **Open with Markview** — tap a `.md` file in any file manager, Drive,
+  email or chat app. Or use **File → Open** / the **Open File** button.
+- **Pinch to zoom** the text. It reflows to the screen instead of panning,
+  and keeps your place in the document. The `−` / `+` buttons do the same.
+- **Outline** — the list button at the bottom-left opens a heading drawer;
+  tap a heading to jump there.
+- **Dark mode** follows the system theme on first launch (View → Toggle
+  Dark Mode to change).
+- Wide tables, code blocks, diagrams and equations scroll sideways on their
+  own; the page itself never does.
+- Your last picked document reopens automatically if Android closed the app
+  in the background.
+
+### Editing
+
+- Tap the **pencil** (toolbar, or View → Edit Mode) to edit in Rendered
+  View. New documents start in Edit Mode.
+- **Code** and **Split** views edit the Markdown source; Split stacks
+  preview above source on phones.
+- **Save** writes back to the opened file when the source app allows it,
+  otherwise it falls back to **Save As**.
+- **Export → PDF** opens the Android print dialog — choose
+  *Save as PDF*. HTML and DOCX exports save through the system file picker.
+- **Back** closes menus, dialogs and the outline first, then sends the app
+  to the background (asking about unsaved changes).
+
+Not on Android: multiple windows, drag-and-drop, Quit, live reload of
+files changed by other apps, and relative image paths for documents opened
+from the picker (Android doesn't grant access to the surrounding folder).
+
+### Building the APK
+
+One-time setup (paths are examples):
+
+- Android SDK with `platforms;android-36`, `build-tools`, and an NDK
+  (r27 tested) — `ANDROID_HOME` must point at the SDK; the NDK is found
+  under `$ANDROID_HOME/ndk/` (or set `NDK_HOME`)
+- JDK 17–21 in `JAVA_HOME` (Android Studio's bundled JBR works)
+- Rust targets:
+  `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android`
+
+```bash
+npm run android:build        # release APK (arm64, armv7, x86_64) -> Markview.apk
+npm run android:build:debug  # debug APK -> Markview-debug.apk
+```
+
+`scripts/android-build.mjs` wraps `tauri android build`. On Windows without
+Developer Mode the Tauri CLI can't symlink the compiled Rust libraries into
+the Android project, so the script copies them and runs Gradle itself.
+(`npx tauri android dev` has no such fallback — it needs Developer Mode on
+Windows.)
+
+Release signing reads `src-tauri/gen/android/keystore.properties`
+(gitignored) — see the comment at the top of
+`src-tauri/gen/android/app/build.gradle.kts`. Without it the release APK is
+unsigned and Android won't install it. Keep the keystore safe: updates must
+be signed with the same key, or users have to uninstall first.
+
+---
+
+## Roadmap: Linux port
 
 The Tauri 2 stack was chosen specifically because the same Rust + HTML/CSS/JS
 codebase can target Linux desktops and Android with minimal changes.
@@ -267,39 +344,6 @@ npx tauri build
 `"rpm"` added alongside the current `"nsis"`. The existing app code, menu,
 file dialog, and watcher API are already cross-platform — no frontend
 changes expected.
-
-### Android
-
-Tauri 2 has first-class mobile support. The `src-tauri/icons/android/`
-folder is already populated.
-
-One-time setup:
-
-- Android Studio (for the SDK + Platform Tools)
-- Android NDK (installed via Android Studio SDK Manager)
-- JDK 17
-- Environment variables: `JAVA_HOME`, `ANDROID_HOME`, `NDK_HOME`
-- Rust targets: `rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android`
-
-Initialize and build:
-
-```bash
-npx tauri android init
-npx tauri android dev          # run on connected device or emulator
-npx tauri android build        # produce signed APK / AAB
-```
-
-Mobile-specific changes to plan for when the port starts:
-
-| Area | Desktop today | Mobile change required |
-| --- | --- | --- |
-| File open | Tauri file dialog | Android Storage Access Framework picker |
-| Drag-and-drop | Window-level event | Not applicable; rely on file picker / intent filters |
-| File watcher (`notify`) | OS-level fs events | Scoped storage limits this; may need polling fallback |
-| Menu bar | Native menu | Hamburger / bottom sheet UI |
-| `window.print()` for PDF | Print dialog | Android `PrintManager` integration |
-| Keyboard shortcuts | Full set | Touch gestures + reduced set |
-| Status bar zoom | Slider + input | Pinch-to-zoom |
 
 ### iOS
 

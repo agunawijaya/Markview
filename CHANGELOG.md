@@ -11,6 +11,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Android build (phones & tablets, Android 7.0+).** Same frontend and Rust
+  commands, packaged as an APK by `npm run android:build`
+  (`scripts/android-build.mjs`, which also works on Windows without
+  Developer Mode). The Android Studio project in `src-tauri/gen/android/` is
+  now tracked.
+  - Documents open **read-only in Rendered View** so tapping while reading
+    doesn't pop up the keyboard; the toolbar pencil / View → Edit Mode turns
+    WYSIWYG editing on. New documents start in Edit Mode.
+  - **Pinch to zoom** reflows the text (same zoom as `Ctrl+wheel`) and keeps
+    the reading position.
+  - Touch-sized menu bar, toolbar and status bar; submenus expand inline on
+    tap; dropdowns stay on screen.
+  - Phones: outline becomes an overlay drawer opened from a status-bar
+    button; split view stacks preview above source; reading-width buttons
+    and zoom slider are hidden (`−` / `+` stay).
+  - Very narrow screens (foldable cover screens, ~320–419 dp): menu labels
+    and toolbar buttons scale down so all six menus and the File group + `»`
+    still fit; the toolbar re-measures when a foldable is folded/unfolded.
+  - Wide tables scroll on their own and long words/URLs wrap, so the page
+    never pans sideways.
+  - **Open with Markview** from file managers, Drive, mail and chat apps
+    (`.md`/`.markdown`, including files sent as `application/octet-stream`).
+  - Files are Android `content://` URIs: `read_file` / `save_file` /
+    `save_base64_file` handle them via `tauri-plugin-fs`; Save falls back to
+    Save As when the grant is read-only. Picked documents keep a persistable
+    grant and the last one reopens after Android kills the app.
+  - **Export → PDF** goes through the Android print dialog (*Save as PDF*);
+    HTML and DOCX save through the system file picker.
+  - Back closes dialogs, menus, find panel and the outline drawer first,
+    then sends the app to the background (with the unsaved-changes prompt).
+  - Dark mode follows the system theme on first launch; status and
+    navigation bars follow the app theme. Content is padded clear of system
+    bars, display cutouts and the on-screen keyboard (Android 15
+    edge-to-edge).
+  - Kotlin bridge `MarkviewBridgePlugin.kt` + `src-tauri/src/android.rs` for
+    the document picker, "Open with" intents, display names, printing,
+    system-bar colors and Back-to-background.
+
 - **LaTeX math** via bundled KaTeX (`lib/katex/`, incl. `.woff2` fonts —
   no CDN, works offline). Inline `$…$` and block `$$…$$` are tokenized
   before `marked`'s default inline rules so `_` and `*` inside math are
@@ -34,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/screenshot.ps1` — PowerShell utility that launches Markview with
   a given `.md`, positions the window, and captures a PNG. Supports
   `-SendKeys` to switch view modes or toggle dark mode before capture.
+
+### Fixed
+
+- Menu bar: after picking a menu entry, the menu state is now fully reset,
+  so merely hovering another menu label no longer pops a menu open (and a
+  tap no longer opens-then-closes a menu on touch screens).
 
 ---
 

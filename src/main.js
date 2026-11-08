@@ -22,9 +22,24 @@ let wysiwygInputTimer = null;
 let savedSelection = null; // saved selection range for context menu
 let suppressWysiwygInput = false; // suppress input events during programmatic DOM changes
 
+// Android build (Tauri mobile): touch layout, no multi-window / Quit / drag-drop,
+// and the picker, printing and "Open with" go through the Android bridge.
+const IS_ANDROID = /Android/i.test(navigator.userAgent);
+if (IS_ANDROID) document.body.classList.add("platform-android");
+// Android opens documents read-only in Rendered View (so tapping while reading
+// doesn't pop up the keyboard); Edit Mode turns WYSIWYG editing on. Always on
+// for desktop.
+let editMode = !IS_ANDROID;
+let lastPointerType = "mouse";
+
+function isPhoneLayout() {
+  return IS_ANDROID && window.matchMedia("(max-width: 599px)").matches;
+}
+
 // --- Initialization ---
 document.addEventListener("DOMContentLoaded", async () => {
   initMarkedExtensions();
+  if (IS_ANDROID) initAndroid();
   initMenu();
   initToolbar();
   initDragDrop();
@@ -111,20 +126,33 @@ async function checkStartupFile() {
     const filePath = await invoke("get_pending_file");
     if (filePath) {
       await openFile(filePath);
+      return;
     }
   } catch (e) {}
+
+  // Android may kill the app in the background; reopen the last document
+  // (picked documents keep a persistable grant) instead of an empty screen.
+  if (IS_ANDROID) {
+    try {
+      const lastFile = await invoke("get_last_file");
+      if (lastFile) await openFile(lastFile);
+    } catch (e) {}
+  }
 }
 
 // --- Preferences ---
 async function loadPreferences() {
   try {
     const dark = await invoke("load_preference", { key: "dark_mode" });
-    if (dark === "true") {
+    // Android first launch follows the system theme.
+    const systemDark = IS_ANDROID && dark == null && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (dark === "true" || systemDark) {
       isDarkMode = true;
       document.body.classList.add("dark");
     }
     const sidebar = await invoke("load_preference", { key: "sidebar" });
-    if (sidebar === "true") {
+    // On phones the outline is an overlay drawer; never start with it covering the page.
+    if (sidebar === "true" && !isPhoneLayout()) {
       sidebarOpen = true;
       document.getElementById("sidebar").classList.remove("collapsed");
     }
@@ -139,6 +167,8 @@ async function loadPreferences() {
   } catch (e) {}
   applySpellCheck();
   syncSpellCheckMenuUI();
+  syncSystemBars();
+  syncEditModeUI();
 
   // Zoom level — localStorage
   try {
@@ -172,36 +202,53 @@ async function savePrefs() {
 }
 
 // --- Menu ---
-function initMenu() {
-  let openMenu = null;
+let openMenu = null;
 
+function openMenuItem(item) {
+  if (openMenu) openMenu.classList.remove("open");
+  item.classList.add("open");
+  openMenu = item;
+  fitDropdownToViewport(item);
+}
+
+function closeAllMenus() {
+  document.querySelectorAll(".menu-item.open").forEach((m) => m.classList.remove("open"));
+  document.querySelectorAll(".has-submenu.sub-open").forEach((s) => s.classList.remove("sub-open"));
+  openMenu = null;
+}
+
+// Narrow screens: shift a dropdown left if it would run off the right edge.
+function fitDropdownToViewport(item) {
+  const dropdown = item.querySelector(".menu-dropdown");
+  if (!dropdown) return;
+  dropdown.style.left = "";
+  const overflow = dropdown.getBoundingClientRect().right - (window.innerWidth - 4);
+  if (overflow > 0) dropdown.style.left = `${-overflow}px`;
+}
+
+function initMenu() {
   document.querySelectorAll(".menu-item").forEach((item) => {
     item.querySelector(".menu-label").addEventListener("click", (e) => {
       e.stopPropagation();
       if (item.classList.contains("open")) {
-        item.classList.remove("open");
-        openMenu = null;
+        closeAllMenus();
       } else {
-        if (openMenu) openMenu.classList.remove("open");
-        item.classList.add("open");
-        openMenu = item;
+        openMenuItem(item);
       }
     });
 
     item.addEventListener("mouseenter", () => {
+      // A tap also fires a synthetic mouseenter right before its click, which
+      // would open the menu only for the click to toggle it shut again.
+      if (lastPointerType === "touch") return;
       if (openMenu && openMenu !== item) {
-        openMenu.classList.remove("open");
-        item.classList.add("open");
-        openMenu = item;
+        openMenuItem(item);
       }
     });
   });
 
   document.addEventListener("click", () => {
-    if (openMenu) {
-      openMenu.classList.remove("open");
-      openMenu = null;
-    }
+    if (openMenu) closeAllMenus();
   });
 
   document.querySelectorAll(".menu-entry[data-action]").forEach((entry) => {
@@ -209,9 +256,20 @@ function initMenu() {
       e.stopPropagation();
       const action = entry.dataset.action;
       handleAction(action);
-      document.querySelectorAll(".menu-item.open").forEach((m) => m.classList.remove("open"));
+      closeAllMenus();
     });
   });
+
+  // Touch has no hover: tapping "Export", "Heading", … expands the submenu inline.
+  if (IS_ANDROID) {
+    document.querySelectorAll(".menu-dropdown .has-submenu").forEach((entry) => {
+      entry.addEventListener("click", (e) => {
+        if (e.target.closest(".submenu")) return;
+        e.stopPropagation();
+        entry.classList.toggle("sub-open");
+      });
+    });
+  }
 
   document.getElementById("about-close").addEventListener("click", () => {
     document.getElementById("about-modal").style.display = "none";
@@ -319,6 +377,17 @@ function initToolbarOverflow() {
       closeOverflowMenu();
     }
   });
+
+  // Android: button size shrinks on very narrow screens (e.g. a foldable's
+  // cover screen), so the widths measured at startup go stale when the
+  // device is folded/unfolded. Put every group back and measure again.
+  if (IS_ANDROID) {
+    window.matchMedia("(max-width: 359px)").addEventListener("change", () => {
+      reflowToolbarGroups(TOOLBAR_GROUP_ORDER.length);
+      measureToolbarGroups();
+      updateToolbarOverflow();
+    });
+  }
 
   // 6. Recompute on toolbar size change
   if (typeof ResizeObserver !== "undefined") {
@@ -521,6 +590,7 @@ function handleAction(action) {
     case "view-code": setViewMode("code"); break;
     case "view-split": setViewMode("split"); break;
     case "toggle-spellcheck": doToggleSpellCheck(); break;
+    case "toggle-edit-mode": setEditMode(!editMode); break;
     case "about": document.getElementById("about-modal").style.display = "flex"; break;
     default:
       if (action.startsWith("spellcheck-lang-")) {
@@ -860,6 +930,7 @@ function initWysiwyg() {
   // Click below content → place cursor at end (create new paragraph if needed)
   mdContent.addEventListener("click", (e) => {
     if (e.target !== mdContent) return; // only when clicking the container itself, not a child
+    if (mdContent.contentEditable !== "true") return; // Android reading mode
     // Check if click is below the last child
     const lastChild = mdContent.lastElementChild;
     if (lastChild) {
@@ -887,6 +958,10 @@ function initWysiwyg() {
 
 function enableWysiwyg() {
   const mdContent = document.getElementById("markdown-content");
+  if (!editMode) {
+    disableWysiwyg();
+    return;
+  }
   mdContent.contentEditable = "true";
   mdContent.style.outline = "none";
   mdContent.style.cursor = "text";
@@ -1008,6 +1083,7 @@ function renderPreview() {
 
 // --- Drag & Drop ---
 function initDragDrop() {
+  if (IS_ANDROID) return;
   getCurrentWebviewWindow().onDragDropEvent((event) => {
     if (event.payload.type === "over") {
       document.body.classList.add("drag-over");
@@ -1049,6 +1125,8 @@ async function doNew() {
     document.getElementById("sidebar-content").innerHTML = "";
     updateWindowTitle("");
     updateStatusBar("", "");
+    // A new document is for writing: switch Android out of reading mode.
+    if (IS_ANDROID) setEditMode(true);
     setViewMode("rendered");
   });
 }
@@ -1071,6 +1149,16 @@ async function doNewWindow() {
 }
 
 async function doOpen() {
+  // Android: one window per app, so the picked file replaces the current one.
+  if (IS_ANDROID) {
+    try {
+      const uri = await invoke("pick_document");
+      if (uri) guardUnsaved(() => openFile(uri));
+    } catch (e) {
+      console.error("Open dialog error:", e);
+    }
+    return;
+  }
   try {
     const selected = await openDialog({
       multiple: false,
@@ -1106,11 +1194,18 @@ async function doOpen() {
 async function openFile(path) {
   try {
     const result = await invoke("read_file", { path });
+    // A different document starts at the top (renderMarkdown keeps the
+    // scroll position, which is only right when reloading the same file).
+    if (result.path !== currentFilePath) {
+      document.getElementById("content-area").scrollTop = 0;
+    }
     currentFilePath = result.path;
     currentFileDir = result.dir;
     currentFilename = result.filename;
     currentRawContent = result.content;
     isDirty = false;
+    // Android: every document opens for reading first.
+    if (IS_ANDROID) setEditMode(false);
 
     // Populate textareas
     document.getElementById("code-textarea").value = result.content;
@@ -1156,6 +1251,8 @@ async function doSave() {
     clearDirty();
   } catch (e) {
     console.error("Save error:", e);
+    // Android: documents received via "Open with" are often read-only grants.
+    if (IS_ANDROID) await doSaveAs();
   }
 }
 
@@ -1169,9 +1266,16 @@ async function doSaveAs() {
   try {
     await invoke("save_file", { path: savePath, content: currentRawContent });
     currentFilePath = savePath;
-    const parts = savePath.replace(/\\/g, "/").split("/");
-    currentFilename = parts[parts.length - 1];
-    currentFileDir = parts.slice(0, -1).join("/");
+    if (savePath.startsWith("content://")) {
+      // Android Save As returns an opaque content URI, not a path.
+      currentFilename = await invoke("file_display_name", { path: savePath });
+      currentFileDir = "";
+      updateStatusBar(currentFilename, currentRawContent);
+    } else {
+      const parts = savePath.replace(/\\/g, "/").split("/");
+      currentFilename = parts[parts.length - 1];
+      currentFileDir = parts.slice(0, -1).join("/");
+    }
     clearDirty();
     await invoke("watch_file", { path: savePath });
     listenForChanges();
@@ -1375,6 +1479,8 @@ function wireCodeBlock(wrapper) {
 
   // Sync pre content → textarea when entering edit mode
   const enterEditMode = () => {
+    // Android reading mode: a tap on code is for reading, not editing
+    if (!editMode && wrapper.closest("#markdown-content")) return;
     if (!wrapper.classList.contains("editing")) {
       // Copy current code text into the textarea
       editor.value = codeEl.textContent;
@@ -1759,6 +1865,7 @@ function initStatusBarControls() {
 function doToggleDark() {
   isDarkMode = !isDarkMode;
   document.body.classList.toggle("dark", isDarkMode);
+  syncSystemBars();
   savePrefs();
   if (currentRawContent) {
     renderPreview();
@@ -1810,6 +1917,159 @@ function doSetSpellCheckLang(lang) {
   savePrefs();
 }
 
+// --- Android ---
+function initAndroid() {
+  // Lets the menu bar tell a finger tap from a mouse hover.
+  document.addEventListener("pointerdown", (e) => { lastPointerType = e.pointerType; }, true);
+
+  document.querySelectorAll(".drop-actions button[data-action]").forEach((btn) => {
+    btn.addEventListener("click", () => handleAction(btn.dataset.action));
+  });
+  document.getElementById("status-outline-btn").addEventListener("click", toggleSidebar);
+  document.getElementById("sidebar-scrim").addEventListener("click", toggleSidebar);
+
+  // "Open with Markview" while the app is already running: the Kotlin bridge
+  // calls this after stashing the document's URI.
+  window.__markviewOpenIntentFile = async () => {
+    try {
+      const uri = await invoke("get_cli_file");
+      if (uri) guardUnsaved(() => openFile(uri));
+    } catch (e) {}
+  };
+  // Fallback in case the nudge ran while the page was paused in the background.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") window.__markviewOpenIntentFile();
+  });
+
+  initBackButton();
+  initPinchZoom();
+}
+
+function setEditMode(on) {
+  if (!IS_ANDROID) return;
+  editMode = on;
+  if (currentViewMode === "rendered") {
+    if (on) {
+      enableWysiwyg();
+    } else {
+      // Blurring commits an open code-block editor and hides the keyboard;
+      // a pending WYSIWYG → markdown conversion still runs on its timer.
+      if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur();
+      }
+      disableWysiwyg();
+    }
+  }
+  syncEditModeUI();
+}
+
+function syncEditModeUI() {
+  document.body.classList.toggle("reading-mode", IS_ANDROID && !editMode);
+  const btn = document.querySelector('.tb-btn[data-action="toggle-edit-mode"]');
+  if (btn) btn.classList.toggle("tb-active", editMode);
+  const entry = document.getElementById("menu-editmode-toggle");
+  if (entry) entry.classList.toggle("checked", editMode);
+}
+
+// Status/navigation bar strips follow the app's light/dark theme.
+function syncSystemBars() {
+  if (!IS_ANDROID) return;
+  invoke("set_system_bar_theme", { dark: isDarkMode }).catch(() => {});
+}
+
+// Back closes whatever is on top first (dialog, menu, drawer, find panel);
+// on the bare document it sends the app to the background, after the usual
+// unsaved-changes prompt.
+function initBackButton() {
+  const app = window.__TAURI__.app;
+  if (!app || typeof app.onBackButtonPress !== "function") return;
+  app.onBackButtonPress(() => {
+    if (dismissTopmostUI()) return;
+    guardUnsaved(() => { invoke("move_app_to_back").catch(() => {}); });
+  });
+}
+
+function dismissTopmostUI() {
+  if (document.getElementById("unsaved-modal").style.display === "flex") {
+    document.getElementById("unsaved-cancel").click();
+    return true;
+  }
+  const about = document.getElementById("about-modal");
+  if (about.style.display === "flex") {
+    about.style.display = "none";
+    return true;
+  }
+  if (openMenu) {
+    closeAllMenus();
+    return true;
+  }
+  const overflowMenu = document.getElementById("toolbar-overflow-menu");
+  if (overflowMenu && overflowMenu.classList.contains("open")) {
+    closeOverflowMenu();
+    return true;
+  }
+  if (document.getElementById("context-menu").style.display === "block") {
+    hideContextMenu();
+    return true;
+  }
+  if (document.getElementById("find-replace-panel").style.display !== "none") {
+    closeFindReplace();
+    return true;
+  }
+  if (isPhoneLayout() && sidebarOpen) {
+    toggleSidebar();
+    return true;
+  }
+  return false;
+}
+
+// Two-finger pinch on the document = content zoom (same as Ctrl+wheel), so
+// text reflows to the screen instead of panning around a magnified page.
+function initPinchZoom() {
+  const area = document.getElementById("content-area");
+  let startDistance = 0;
+  let startZoom = 100;
+  let pendingZoom = null;
+  const distance = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+  area.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 2) {
+      startDistance = distance(e.touches);
+      startZoom = currentZoom;
+    }
+  }, { passive: true });
+
+  area.addEventListener("touchmove", (e) => {
+    if (e.touches.length !== 2 || !startDistance) return;
+    e.preventDefault();
+    if (pendingZoom === null) {
+      requestAnimationFrame(() => {
+        setZoomKeepingPosition(pendingZoom);
+        pendingZoom = null;
+      });
+    }
+    pendingZoom = startZoom * distance(e.touches) / startDistance;
+  }, { passive: false });
+
+  const endPinch = (e) => {
+    if (e.touches.length < 2) startDistance = 0;
+  };
+  area.addEventListener("touchend", endPinch);
+  area.addEventListener("touchcancel", endPinch);
+}
+
+// Zoom reflows the document, so keep the reader at the same relative spot.
+function setZoomKeepingPosition(percent) {
+  const area = document.getElementById("content-area");
+  const before = currentZoom;
+  const maxBefore = area.scrollHeight - area.clientHeight;
+  const ratio = maxBefore > 0 ? area.scrollTop / maxBefore : 0;
+  setZoom(percent, { snapStep: 5 });
+  if (currentZoom !== before) {
+    area.scrollTop = ratio * (area.scrollHeight - area.clientHeight);
+  }
+}
+
 // --- Sidebar ---
 function initSidebar() {
   document.getElementById("sidebar-close").addEventListener("click", () => {
@@ -1824,6 +2084,15 @@ function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
   sidebarOpen = !sidebarOpen;
   sidebar.classList.toggle("collapsed", !sidebarOpen);
+  // Phone drawer: show where you are in a long outline.
+  if (sidebarOpen && isPhoneLayout()) {
+    updateActiveOutlineItem();
+    const list = document.getElementById("sidebar-content");
+    const active = list.querySelector(".outline-item.active");
+    if (active) {
+      list.scrollTop += active.getBoundingClientRect().top - list.getBoundingClientRect().top - list.clientHeight / 2;
+    }
+  }
   updateToolbarState();
   savePrefs();
 }
@@ -1894,6 +2163,8 @@ function buildOutline() {
       }
       sidebarContent.querySelectorAll(".outline-item").forEach(i => i.classList.remove("active"));
       item.classList.add("active");
+      // Phone drawer: get out of the way once a heading is picked
+      if (isPhoneLayout() && sidebarOpen) toggleSidebar();
     });
 
     sidebarContent.appendChild(item);
@@ -2028,6 +2299,8 @@ function updateToolbarState() {
   // Sidebar button
   const sidebarBtn = document.querySelector('.tb-btn[data-action="toggle-sidebar"]');
   if (sidebarBtn) sidebarBtn.classList.toggle("tb-active", sidebarOpen);
+  const outlineBtn = document.getElementById("status-outline-btn");
+  if (outlineBtn) outlineBtn.classList.toggle("active", sidebarOpen);
 
   // Format state (heading, bold, italic, etc.) — only meaningful in rendered view
   const formatActions = ["h1", "h2", "h3", "h4", "h5", "h6", "bold", "italic", "underline", "strikethrough"];
@@ -2626,6 +2899,9 @@ function initContextMenu() {
 
   // Use delegation on content-area to catch all editable surfaces
   document.getElementById("content-area").addEventListener("contextmenu", (e) => {
+    // Android long-press keeps the native selection handles and Copy/Paste bar;
+    // only a real mouse right-click gets the custom menu.
+    if (IS_ANDROID && e.pointerType !== "mouse") return;
     // Only show custom context menu on editable surfaces
     const target = e.target;
     const isTextarea = target.id === "code-textarea" || target.id === "split-textarea";
@@ -2940,6 +3216,16 @@ document.querySelectorAll(".mermaid-copy-btn").forEach(function(btn) {
 // --- Export PDF ---
 function doExportPDF() {
   if (!currentRawContent) return;
+  if (IS_ANDROID) {
+    // Android WebView ignores window.print(); the system print dialog offers
+    // "Save as PDF". The print adapter snapshots the page asynchronously, so
+    // skip the re-render below — it would swap mermaid SVGs back to source
+    // text until the debounced mermaid pass runs. The preview is already kept
+    // in sync on every edit.
+    const name = (currentFilename || "untitled").replace(/\.(md|markdown)$/i, "");
+    invoke("print_document", { name }).catch((e) => console.error("Print error:", e));
+    return;
+  }
   // Ensure rendered view is up to date
   renderMarkdownToElement(currentRawContent, document.getElementById("markdown-content"));
   window.print();

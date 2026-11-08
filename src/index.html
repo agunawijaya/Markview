@@ -13,7 +13,7 @@
       <span class="menu-label">File</span>
       <div class="menu-dropdown" id="menu-file">
         <div class="menu-entry" data-action="new">New <span class="shortcut">Ctrl+N</span></div>
-        <div class="menu-entry" data-action="new-window">New Window</div>
+        <div class="menu-entry desktop-only" data-action="new-window">New Window</div>
         <div class="menu-entry" data-action="open">Open... <span class="shortcut">Ctrl+O</span></div>
         <div class="menu-entry" data-action="save">Save <span class="shortcut">Ctrl+S</span></div>
         <div class="menu-entry" data-action="save-as">Save As... <span class="shortcut">Ctrl+Shift+S</span></div>
@@ -27,8 +27,8 @@
             <div class="menu-entry" data-action="export-docx-word">DOCX (Word Style)</div>
           </div>
         </div>
-        <div class="menu-separator"></div>
-        <div class="menu-entry" data-action="quit">Quit <span class="shortcut">Ctrl+Q</span></div>
+        <div class="menu-separator desktop-only"></div>
+        <div class="menu-entry desktop-only" data-action="quit">Quit <span class="shortcut">Ctrl+Q</span></div>
       </div>
     </div>
     <div class="menu-item" data-menu="edit">
@@ -95,6 +95,7 @@
         <div class="menu-entry" data-action="view-rendered">Rendered View <span class="shortcut">Ctrl+1</span></div>
         <div class="menu-entry" data-action="view-code">Code View <span class="shortcut">Ctrl+2</span></div>
         <div class="menu-entry" data-action="view-split">Split View <span class="shortcut">Ctrl+3</span></div>
+        <div class="menu-entry android-only" id="menu-editmode-toggle" data-action="toggle-edit-mode">Edit Mode <span class="menu-check">&#10003;</span></div>
         <div class="menu-separator"></div>
         <div class="menu-entry" id="menu-spellcheck-toggle" data-action="toggle-spellcheck">Spell Check <span class="menu-check">&#10003;</span></div>
         <div class="menu-entry has-submenu" id="menu-spellcheck-lang-entry">Spell Check Language
@@ -157,6 +158,7 @@
     <button class="tb-btn" data-action="view-rendered" title="Rendered View (Ctrl+1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></button>
     <button class="tb-btn" data-action="view-code" title="Code View (Ctrl+2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 9-3 3 3 3"/><path d="m14 15 3-3-3-3"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg></button>
     <button class="tb-btn" data-action="view-split" title="Split View (Ctrl+3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg></button>
+    <button class="tb-btn android-only" data-action="toggle-edit-mode" title="Edit Mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></button>
   </div>
 
   <div id="main-area">
@@ -174,6 +176,7 @@
         <div id="sidebar-content"></div>
       </div>
     </div>
+    <div id="sidebar-scrim"></div>
     <div id="content-area">
       <div id="find-replace-panel" style="display:none;">
         <div class="fr-row">
@@ -192,8 +195,13 @@
       <div id="drop-zone">
         <div class="drop-zone-inner">
           <div class="drop-icon">📄</div>
-          <p>Drop a <strong>.md</strong> file here to edit</p>
-          <p class="drop-hint">or use File → Open (Ctrl+O) or File → New (Ctrl+N)</p>
+          <p class="desktop-only">Drop a <strong>.md</strong> file here to edit</p>
+          <p class="drop-hint desktop-only">or use File → Open (Ctrl+O) or File → New (Ctrl+N)</p>
+          <p class="android-only">Open a <strong>Markdown</strong> file to read or edit</p>
+          <div class="drop-actions android-only">
+            <button class="drop-primary" data-action="open">Open File</button>
+            <button data-action="new">New</button>
+          </div>
         </div>
       </div>
       <div id="rendered-view">
@@ -216,6 +224,9 @@
 
   <div id="status-bar">
     <div id="status-left">
+      <button id="status-outline-btn" class="android-only" title="Outline" aria-label="Outline">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12h-8"/><path d="M21 6H8"/><path d="M21 18h-8"/><path d="M3 6v4c0 1.1.9 2 2 2h3"/><path d="M3 10v6c0 1.1.9 2 2 2h3"/></svg>
+      </button>
       <span id="status-filename"></span>
       <span id="status-cursor"></span>
       <span id="status-wordcount"></span>

@@ -7,6 +7,8 @@
     "build": "tauri build && node scripts/copy-portable.mjs",
     "build:tauri": "tauri build",
     "postbuild": "node scripts/copy-portable.mjs",
+    "android:build": "node scripts/android-build.mjs",
+    "android:build:debug": "node scripts/android-build.mjs --debug",
     "tauri": "tauri"
   },
   "keywords": [

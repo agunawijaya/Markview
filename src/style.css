@@ -1301,6 +1301,227 @@ body {
 .hljs { background: transparent !important; }
 body.dark .hljs { color: #d4d4d4; }
 
+/* === Android (phones & tablets) ===
+   Everything below is scoped to body.platform-android (set by main.js from
+   the user agent), so the desktop layout above is untouched. */
+body:not(.platform-android) .android-only { display: none !important; }
+body.platform-android .desktop-only { display: none !important; }
+
+body.platform-android {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Bars are bigger for fingers; #main-area takes whatever is left via flex. */
+body.platform-android #menu-bar { height: 40px; }
+body.platform-android .menu-label { line-height: 32px; padding: 4px 10px; font-size: 14px; }
+body.platform-android .menu-dropdown {
+  top: 40px;
+  min-width: 240px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+body.platform-android .menu-entry { padding: 11px 20px; font-size: 15px; }
+
+/* Submenus expand inline on tap (no hover, and no room to fly out sideways). */
+body.platform-android .has-submenu { flex-wrap: wrap; }
+body.platform-android .has-submenu::after { content: "\25BE"; font-size: 12px; order: 1; }
+body.platform-android .has-submenu .submenu,
+body.platform-android .has-submenu:hover .submenu {
+  display: none;
+  position: static;
+  order: 2;
+  flex-basis: calc(100% + 40px);
+  min-width: 0;
+  margin: 8px -20px -11px;
+  border: none;
+  box-shadow: none;
+}
+body.platform-android .has-submenu.sub-open .submenu { display: block; }
+body.platform-android .submenu .menu-entry { padding-left: 36px; }
+
+body.platform-android #toolbar {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  padding: 0 6px;
+}
+body.platform-android .tb-btn { width: 36px; height: 36px; border-radius: 6px; }
+body.platform-android .tb-btn svg { width: 20px; height: 20px; }
+body.platform-android #toolbar-overflow-menu { max-width: calc(100vw - 8px); }
+body.platform-android #toolbar-overflow-menu .tb-group { flex-wrap: wrap; }
+
+body.platform-android #main-area {
+  height: auto;
+  min-height: 0;
+  position: relative;
+}
+
+body.platform-android #content-area {
+  /* Pinch is handled in JS (content zoom), the browser only pans. */
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+}
+
+body.platform-android #status-bar {
+  height: 40px;
+  padding: 0 8px 0 12px;
+  gap: 8px;
+  font-size: 13px;
+}
+body.platform-android #status-left { gap: 12px; }
+body.platform-android .rw-btn,
+body.platform-android .zoom-btn { width: 32px; height: 32px; }
+body.platform-android .rw-btn svg,
+body.platform-android .zoom-btn svg { width: 18px; height: 18px; }
+
+#status-outline-btn {
+  display: none;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+}
+#status-outline-btn svg { width: 18px; height: 18px; }
+#status-outline-btn.active { background: var(--rw-accent); color: #fff; }
+
+/* No sticky hover highlight after a tap on touch screens. */
+@media (hover: none) {
+  body.platform-android .tb-btn:hover:not(.tb-active),
+  body.platform-android .rw-btn:hover:not(.active),
+  body.platform-android .zoom-btn:hover { background: transparent; }
+  body.platform-android .tb-btn:active,
+  body.platform-android .zoom-btn:active { background: var(--menu-hover); }
+  body.platform-android .mermaid-toolbar { opacity: 0.85; }
+}
+
+body.platform-android .outline-item { padding-top: 9px; padding-bottom: 9px; font-size: 14px; }
+body.platform-android #sidebar-close { padding: 6px 10px; font-size: 16px; }
+
+#sidebar-scrim {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: var(--modal-bg);
+  z-index: 1100;
+}
+
+/* Reading comfort: long words/URLs wrap, wide tables scroll on their own
+   instead of dragging the whole page sideways. */
+body.platform-android #markdown-content,
+body.platform-android #split-markdown-content { overflow-wrap: break-word; }
+body.platform-android #markdown-content table,
+body.platform-android #split-markdown-content table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Reading mode (Edit Mode off): code blocks are not tap-to-edit. */
+body.platform-android.reading-mode #markdown-content .codeblock-lang-bar { display: none !important; }
+body.platform-android.reading-mode #markdown-content .codeblock-wrapper pre { cursor: auto; }
+
+/* Empty-state buttons */
+.drop-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+.drop-actions button {
+  padding: 10px 22px;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--text);
+}
+.drop-actions .drop-primary {
+  background: var(--rw-accent);
+  border-color: var(--rw-accent);
+  color: #fff;
+}
+
+body.platform-android .modal-content button { padding: 10px 20px; font-size: 15px; }
+
+/* Phones (narrow) */
+@media (max-width: 599px) {
+  body.platform-android #markdown-content { padding: 20px 16px 40px; }
+  body.platform-android #code-textarea,
+  body.platform-android #split-textarea { padding: 16px; }
+  body.platform-android #split-rendered { padding: 16px; }
+
+  body.platform-android #markdown-content h1,
+  body.platform-android #split-markdown-content h1 { font-size: 1.75em; }
+  body.platform-android #markdown-content h2,
+  body.platform-android #split-markdown-content h2 { font-size: 1.4em; }
+  body.platform-android #markdown-content ul,
+  body.platform-android #markdown-content ol { padding-left: 1.5em; }
+  body.platform-android #markdown-content blockquote { padding: 4px 12px; }
+  body.platform-android #markdown-content pre code,
+  body.platform-android .codeblock-wrapper pre code { font-size: 13px; }
+  body.platform-android #markdown-content pre,
+  body.platform-android .codeblock-wrapper pre { padding: 12px; }
+
+  /* Split view stacks: preview on top, source below. */
+  body.platform-android #split-view { flex-direction: column; }
+  body.platform-android .split-divider { width: auto; height: 1px; }
+
+  /* Reading width modes are all "full width" on a phone; the outline gets a
+     button here instead of the 40px rail. */
+  body.platform-android #reading-width-group,
+  body.platform-android #status-divider,
+  body.platform-android #zoom-slider,
+  body.platform-android #status-cursor { display: none; }
+  body.platform-android #status-outline-btn { display: inline-flex; }
+  body.platform-android .menu-entry .shortcut { display: none; }
+
+  /* Outline sidebar becomes an overlay drawer. */
+  body.platform-android #sidebar.collapsed { display: none; }
+  body.platform-android #sidebar:not(.collapsed) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1200;
+    width: min(85vw, 320px);
+    min-width: 0;
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.25);
+  }
+  body.platform-android #sidebar:not(.collapsed) ~ #sidebar-scrim { display: block; }
+
+  body.platform-android #find-replace-panel { left: 8px; right: 8px; min-width: 0; }
+  body.platform-android .drop-zone-inner { padding: 32px 20px; margin: 16px; }
+
+  body.platform-android .modal-content {
+    min-width: 0;
+    max-width: calc(100vw - 32px);
+    padding: 24px 20px;
+  }
+  body.platform-android .modal-buttons { flex-wrap: wrap; }
+}
+
+/* Very narrow screens (foldable cover screens, small phones): all six menu
+   labels must still fit on one row, and the File group plus » must still
+   fit in the toolbar. */
+@media (max-width: 419px) {
+  body.platform-android .menu-label {
+    font-size: clamp(12px, 3.5vw, 14px);
+    padding: 4px clamp(4px, 1.6vw, 10px);
+  }
+}
+@media (max-width: 359px) {
+  body.platform-android #toolbar { padding: 0 4px; }
+  body.platform-android .tb-btn { width: 32px; height: 32px; }
+  body.platform-android .tb-btn svg { width: 18px; height: 18px; }
+}
+
 /* === Print CSS === */
 @media print {
   #menu-bar,
@@ -1314,6 +1535,7 @@ body.dark .hljs { color: #d4d4d4; }
   #reading-width-group,
   #zoom-group,
   #status-divider,
+  #sidebar-scrim,
   .mermaid-toolbar {
     display: none !important;
   }
@@ -1364,4 +1586,25 @@ body.dark .hljs { color: #d4d4d4; }
   #markdown-content img {
     page-break-inside: avoid;
   }
+
+  /* Android print adapter: the on-screen scrolling tables would widen the
+     whole page past the paper edge, and it prints backgrounds, so a dark
+     theme would come out as dark pages. */
+  body.platform-android #content-area { min-width: 0; }
+  body.platform-android #markdown-content table {
+    display: table;
+    width: 100%;
+    max-width: none;
+  }
+  body.platform-android.dark {
+    --bg: #ffffff;
+    --text: #1a1a1a;
+    --code-bg: #f5f5f5;
+    --border: #e0e0e0;
+    --blockquote-border: #d0d0d0;
+    --link-color: #0366d6;
+    --table-stripe: #f6f8fa;
+  }
+  body.platform-android.dark #markdown-content blockquote { color: #6a737d; }
+  body.platform-android.dark .hljs { color: #1a1a1a; }
 }

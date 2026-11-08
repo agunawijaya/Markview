@@ -118,6 +118,9 @@ flowchart LR
 - If the user opens a second file while one is loaded, a new window is
   spawned; if the current window is empty, the file replaces the current
   content.
+- **Android** has exactly one window. Opening a file always replaces the
+  current document (behind the unsaved-changes guard), and New Window /
+  Quit are hidden. See §12.
 
 ---
 
@@ -237,8 +240,9 @@ The Rust code lives in `src-tauri/src/`:
 
 ```
 src-tauri/src/
-├── main.rs   thin entry — delegates to app_lib::run()
-└── lib.rs    all Tauri commands + AppState + file watcher
+├── main.rs     thin entry — delegates to app_lib::run()
+├── lib.rs      all Tauri commands + AppState + file watcher
+└── android.rs  (Android only) bridge to MarkviewBridgePlugin.kt
 ```
 
 ### 5.1 Commands exposed to the frontend
@@ -255,8 +259,17 @@ src-tauri/src/
 | `get_cli_file`         | Return `argv[1]` when it is an existing `.md`        |
 | `save_preference`      | Persist a keyed string in `app_local_data_dir`       |
 | `load_preference`      | Read that string back                                |
-| `get_last_file`        | (Unused by frontend — see Known Gaps)                |
+| `get_last_file`        | Last opened file — used on Android only (§12)        |
 | `quit_app`             | `std::process::exit(0)`                              |
+| `file_display_name`    | Filename for a path or Android `content://` URI      |
+| `pick_document`        | Android: system document picker (read/write grant)   |
+| `print_document`       | Android: system print dialog (PDF export)            |
+| `set_system_bar_theme` | Android: status/nav bar colors for light/dark        |
+| `move_app_to_back`     | Android: Back on the root screen                     |
+
+`read_file`, `save_file` and `save_base64_file` accept Android `content://`
+URIs as well as paths; those are opened through `tauri-plugin-fs`, which
+goes via the Android ContentResolver.
 
 ### 5.2 File watch flow
 
@@ -439,9 +452,56 @@ Design constraints worth restating for contributors:
 Tracked so future work doesn't re-introduce them:
 
 1. `get_last_file` + `last_file.txt` writing exist on the Rust side but the
-   frontend never calls `get_last_file` on startup — wire it up or delete it.
+   desktop frontend never calls `get_last_file` on startup (Android does —
+   §12) — wire it up for desktop too or leave it Android-only.
 2. `lib/html-docx.js` is bundled but the current DOCX exporter uses `docx`
    (`lib/docx.umd.js`). Removing html-docx.js would shrink the bundle.
 3. Version string is inconsistent: `Cargo.toml` / `tauri.conf.json` say
    `0.1.0`; the About modal says `0.2.0`. Pick one source of truth (see
    [CHANGELOG.md](CHANGELOG.md) for the release notes).
+
+---
+
+## 12. Android
+
+The Android build is the same frontend and the same Rust commands, packaged
+by `tauri android build` from the Android Studio project in
+`src-tauri/gen/android/` (tracked in git — it carries Markview's own code).
+
+```mermaid
+flowchart LR
+    JS[main.js<br/>IS_ANDROID branches] -->|invoke| Rust[lib.rs commands]
+    Rust -->|content:// URIs| FS[tauri-plugin-fs<br/>ContentResolver]
+    Rust -->|android.rs<br/>spawn_blocking| Bridge[MarkviewBridgePlugin.kt]
+    Bridge --> Picker[ACTION_OPEN_DOCUMENT]
+    Bridge --> Print[PrintManager]
+    Bridge --> Intent[VIEW intents<br/>Open with Markview]
+    Bridge --> Bars[system bar colors]
+```
+
+- **Detection.** `main.js` checks the user agent once and adds
+  `body.platform-android`. Every Android style lives in one block of
+  `style.css` scoped to that class, so desktop rendering is untouched.
+  Elements marked `.android-only` / `.desktop-only` are hidden on the other
+  platform.
+- **Files are content URIs.** The picker, "Open with" and Save As hand out
+  `content://…` URIs, not paths. They have no directory (relative images
+  can't resolve) and can't be watched (no live reload). Save falls back to
+  Save As when the grant is read-only.
+- **Bridge.** `MarkviewBridgePlugin.kt` is a Tauri Android plugin living in
+  the app module. It is registered from `android.rs` and only reached via
+  Markview's Rust commands. Calls block on the Kotlin side, which runs on the
+  UI thread, so every bridge call is made from `spawn_blocking`.
+- **Insets.** Android 15+ forces edge-to-edge and WebView doesn't expose the
+  system bars as CSS safe areas, so `MainActivity.kt` pads the content view
+  by the system-bar, cutout and keyboard insets.
+- **Reading mode.** Documents open with Rendered View non-editable
+  (`editMode = false`); the toolbar pencil / View → Edit Mode switches
+  WYSIWYG on. New documents start in Edit Mode.
+- **Touch.** Pinch on the content area drives the same `setZoom()` as
+  `Ctrl+wheel`; the outline is an overlay drawer on phones; submenus expand
+  inline on tap; long-press keeps the native selection menu instead of the
+  custom context menu; the hardware Back button is routed through
+  `onBackButtonPress`.
+- **Signing.** `app/build.gradle.kts` signs release builds when
+  `src-tauri/gen/android/keystore.properties` exists (gitignored).

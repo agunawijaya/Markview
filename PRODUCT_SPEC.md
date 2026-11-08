@@ -50,8 +50,11 @@ vaults, or sync. Markview is a **file editor**, not a knowledge base.
 - **Distribution:** single portable `Markview.exe` (~10-20 MB depending on
   Tauri/Rust versions), no installer required. NSIS installer is also
   provided for users who prefer Start Menu integration.
-- **Roadmap:** Linux (WebKitGTK) and Android (Tauri mobile) — port
-  requirements in [README.md](README.md).
+- **Android:** phones and tablets, Android 7.0+ (Tauri mobile), shipped as
+  an APK — see [README.md § Android](README.md#android-phones--tablets).
+  Same feature set minus multi-window, drag-and-drop, Quit and live reload;
+  documents open read-only in Rendered View until Edit Mode is switched on.
+- **Roadmap:** Linux (WebKitGTK) — port requirements in [README.md](README.md).
 
 ---
 
@@ -348,8 +351,8 @@ Markview is considered successful if:
 
 ## 9. Roadmap
 
-See [README.md § Roadmap](README.md#roadmap-linux-and-android-ports) for the
-Linux and Android ports. Feature-wise, the shortlist under consideration
+See [README.md § Roadmap](README.md#roadmap-linux-port) for the
+Linux port. Feature-wise, the shortlist under consideration
 (not committed):
 
 - Configurable syntax-highlight theme
